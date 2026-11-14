@@ -143,11 +143,16 @@
 
   /* iOS-weather style sky (Simple mode) */
   .sky {
-    position: relative; overflow: hidden; margin: 0 -16px; padding: 112px 16px 18px; color: #fff; text-align: center;
-    background: linear-gradient(180deg, var(--s1) 0%, var(--s2) 60%, var(--s3) 100%);
+    position: relative; isolation: isolate; margin: 0 -16px; padding: 112px 16px 18px; color: #fff; text-align: center;
+  }
+  /* the sky colour runs on below the weather and fades into the page, behind the cards */
+  .sky::after {
+    content: ""; position: absolute; inset: 0 0 -140px 0; z-index: -2; pointer-events: none;
+    background: linear-gradient(180deg, var(--s1) 0%, var(--s2) 35%, var(--s3) calc(100% - 170px),
+      color-mix(in oklab, var(--s3) 45%, var(--color-canvas)) calc(100% - 70px), var(--color-canvas) 100%);
   }
   .sky::before {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
     background: radial-gradient(120% 60% at 20% 15%, rgb(255 255 255 / 0.18), transparent 60%),
       radial-gradient(90% 50% at 85% 35%, rgb(255 255 255 / 0.12), transparent 60%);
   }
