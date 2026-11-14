@@ -85,6 +85,7 @@ class PostIn(BaseModel):
     text: str = Field(..., min_length=1, max_length=2000)
     type: PostType = "update"
     crop: str = ""
+    image: str = ""
 
     @field_validator("crop")
     @classmethod
@@ -92,6 +93,10 @@ class PostIn(BaseModel):
         if v and v not in CROPS:
             raise ValueError("Unknown crop")
         return v
+
+
+class CommentIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1000)
 
 
 class ChatMessage(BaseModel):

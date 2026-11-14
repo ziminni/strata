@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS posts (
   verified INTEGER NOT NULL DEFAULT 0,
   sample INTEGER NOT NULL DEFAULT 0,
   helpful TEXT NOT NULL DEFAULT '[]',
+  comments TEXT NOT NULL DEFAULT '[]',
+  image TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL
 );
 """
@@ -63,14 +65,30 @@ def connect():
 def init_db() -> None:
     with connect() as c:
         c.executescript(SCHEMA)
+        # Migrate columns if existing db lacks them
+        cols = {r["name"] for r in c.execute("PRAGMA table_info(posts)").fetchall()}
+        if "comments" not in cols:
+            c.execute("ALTER TABLE posts ADD COLUMN comments TEXT NOT NULL DEFAULT '[]'")
+        if "image" not in cols:
+            c.execute("ALTER TABLE posts ADD COLUMN image TEXT NOT NULL DEFAULT ''")
+
         if c.execute("SELECT COUNT(*) FROM posts").fetchone()[0] == 0:
             t = now_ms()
-            c.executemany(
-                "INSERT INTO posts (text, type, crop, prov, author_label, verified, sample, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
-                [(text, typ, crop, prov, author, int(verified), t - int(hours * 3600e3))
-                 for hours, author, verified, prov, crop, typ, text in SAMPLE_POSTS],
-            )
+            for sp in SAMPLE_POSTS:
+                if isinstance(sp, dict):
+                    comments_json = json.dumps([
+                        {"id": cm.get("id", now_ms()), "author": cm["author"], "location": cm.get("location", ""),
+                         "text": cm["text"], "created_at": t - int(cm.get("hours", 1) * 3600e3)}
+                        for cm in sp.get("comments", [])
+                    ])
+                    helpful_json = json.dumps([f"farmer_{k}" for k in range(sp.get("helpful_count", 0))])
+                    c.execute(
+                        "INSERT INTO posts (text, type, crop, prov, mun, author_label, verified, sample, helpful, comments, image, created_at)"
+                        " VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)",
+                        (sp["text"], sp["type"], sp.get("crop", ""), sp.get("prov", ""), sp.get("mun", ""),
+                         sp["author"], int(sp.get("verified", False)), helpful_json, comments_json, sp.get("image", ""),
+                         t - int(sp["hours"] * 3600e3)),
+                    )
 
 
 def get_farm() -> Farm:
@@ -107,13 +125,16 @@ ME = "me"  # single local user until auth is added
 
 
 def _post_view(row: sqlite3.Row) -> dict:
-    helpful = json.loads(row["helpful"])
+    helpful = json.loads(row["helpful"] or "[]")
+    comments = json.loads(row["comments"] or "[]") if "comments" in row.keys() else []
+    image = row["image"] if "image" in row.keys() else ""
     return {
         "id": row["id"], "text": row["text"], "type": row["type"], "crop": row["crop"],
         "prov": row["prov"], "mun": row["mun"],
         "author": "You" if row["mine"] else row["author_label"],
         "mine": bool(row["mine"]), "verified": bool(row["verified"]), "sample": bool(row["sample"]),
-        "helpful_count": len(helpful), "helped": ME in helpful, "created_at": row["created_at"],
+        "helpful_count": len(helpful), "helped": ME in helpful, "comments": comments, "image": image,
+        "created_at": row["created_at"],
     }
 
 
@@ -123,14 +144,36 @@ def list_posts(limit: int = 150) -> list:
     return [_post_view(r) for r in rows]
 
 
-def add_post(text: str, type_: str, crop: str, farm: Farm) -> dict:
+def add_post(text: str, type_: str, crop: str, farm: Farm, image: str = "") -> dict:
     label = (farm.name.split(" ")[0] if farm.name else "Farmer") + " · " + farm.mun
     with connect() as c:
         cur = c.execute(
-            "INSERT INTO posts (text, type, crop, prov, mun, author_label, mine, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
-            (text, type_, crop, farm.prov, farm.mun, label, now_ms()),
+            "INSERT INTO posts (text, type, crop, prov, mun, author_label, mine, helpful, comments, image, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, 1, '[]', '[]', ?, ?)",
+            (text, type_, crop, farm.prov, farm.mun, label, image, now_ms()),
         )
         row = c.execute("SELECT * FROM posts WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return _post_view(row)
+
+
+def add_comment(post_id: int, text: str, farm: Farm) -> dict:
+    author = farm.name.split(" ")[0] if farm.name else "You"
+    loc = f"{farm.mun}, {farm.prov}" if farm.mun else farm.prov
+    new_comment = {
+        "id": now_ms(),
+        "author": author,
+        "location": loc,
+        "text": text,
+        "created_at": now_ms(),
+    }
+    with connect() as c:
+        row = c.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
+        if not row:
+            return None
+        comments = json.loads(row["comments"] or "[]")
+        comments.append(new_comment)
+        c.execute("UPDATE posts SET comments = ? WHERE id = ?", (json.dumps(comments), post_id))
+        row = c.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
     return _post_view(row)
 
 

@@ -4,7 +4,7 @@ import { CROPS, DEFAULT_FARM, FARM_CROPS, LOGTYPES, MON, PLANS, POST_TYPES, PROV
 import { activePlan, ADVICE_CROPS, buildSegs, climSummary, cropAdvice, evaluatePlan, rankedView, segView } from './engine'
 
 const ME = 'me'
-const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts', plots: 'strata_plots' }
+const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v7', plots: 'strata_plots' }
 
 function load(key, fallback) {
   try {
@@ -44,9 +44,37 @@ function httpError(status, detail) {
 /* ---------- store ---------- */
 function seedPosts() {
   const t = Date.now()
-  return SAMPLE_POSTS.map(([hours, author, verified, prov, crop, type, text], i) => ({
-    id: i + 1, text, type, crop, prov, mun: '', author_label: author, mine: false, verified, sample: true, helpful: [], created_at: t - hours * 3600e3,
-  }))
+  return SAMPLE_POSTS.map((sp, i) => {
+    if (Array.isArray(sp)) {
+      const [hours, author, verified, prov, crop, type, text] = sp
+      return {
+        id: i + 1, text, type, crop, prov, mun: '', author_label: author, mine: false, verified, sample: true,
+        helpful: [], comments: [], image: '', created_at: t - hours * 3600e3,
+      }
+    }
+    return {
+      id: i + 1,
+      text: sp.text,
+      type: sp.type,
+      crop: sp.crop || '',
+      prov: sp.prov || 'Nueva Ecija',
+      mun: sp.mun || '',
+      author_label: sp.author,
+      mine: false,
+      verified: !!sp.verified,
+      sample: true,
+      helpful: Array.from({ length: sp.helpful_count || 0 }, (_, k) => `farmer_${k}`),
+      comments: (sp.comments || []).map((c) => ({
+        id: c.id || Date.now() + Math.random(),
+        author: c.author,
+        location: c.mun ? `${c.mun}, ${c.prov}` : c.prov || '',
+        text: c.text,
+        created_at: t - (c.hours || 1) * 3600e3,
+      })),
+      image: sp.image || '',
+      created_at: t - sp.hours * 3600e3,
+    }
+  })
 }
 const getFarm = () => normalizeFarm(load(KEYS.farm, () => ({})))
 const getLogs = () => load(KEYS.logs, () => [])
@@ -87,19 +115,48 @@ function normalizeFarm(f = {}) {
 
 function postView(p) {
   return {
-    id: p.id, text: p.text, type: p.type, crop: p.crop, prov: p.prov, mun: p.mun,
-    author: p.mine ? 'You' : p.author_label, mine: p.mine, verified: p.verified, sample: p.sample,
-    helpful_count: p.helpful.length, helped: p.helpful.includes(ME), created_at: p.created_at,
+    id: p.id,
+    text: p.text,
+    type: p.type,
+    crop: p.crop,
+    prov: p.prov,
+    mun: p.mun,
+    author: p.mine ? 'You' : p.author_label,
+    mine: p.mine,
+    verified: p.verified,
+    sample: p.sample,
+    helpful_count: (p.helpful || []).length,
+    helped: (p.helpful || []).includes(ME),
+    comments: (p.comments || []).map((c) => ({
+      id: c.id,
+      author: c.author,
+      location: c.location || '',
+      text: c.text,
+      created_at: c.created_at,
+    })),
+    image: p.image || '',
+    created_at: p.created_at,
   }
 }
 
-function addPost(text, type, crop) {
+function addPost(text, type, crop, image = '') {
   const farm = getFarm()
   const posts = getPosts()
   const p = {
-    id: nextId(posts), text, type, crop: crop || '', prov: farm.prov, mun: farm.mun,
+    id: nextId(posts),
+    text,
+    type,
+    crop: crop || '',
+    prov: farm.prov,
+    mun: farm.mun,
     author_label: (farm.name ? farm.name.split(' ')[0] : 'Farmer') + ' · ' + farm.mun,
-    mine: true, verified: false, sample: false, helpful: [], created_at: Date.now(),
+    mine: true,
+    verified: false,
+    sample: false,
+    helpful: [],
+    comments: [],
+    image: image || '',
+    created_at: Date.now(),
   }
   save(KEYS.posts, [p, ...posts])
   return postView(p)
@@ -185,14 +242,37 @@ export async function handle(method, path, body) {
     const text = String(body?.text || '').trim()
     if (!text) throw httpError(422, 'Write something first')
     if (!POST_TYPES.includes(body.type)) throw httpError(422, 'Unknown post type')
-    return addPost(text.slice(0, 2000), body.type, CROPS[body.crop] ? body.crop : '')
+    const image = typeof body?.image === 'string' ? body.image : ''
+    return addPost(text.slice(0, 2000), body.type, CROPS[body.crop] ? body.crop : '', image)
   }
   const helpful = p.match(/^\/posts\/(\d+)\/helpful$/)
   if (method === 'POST' && helpful) {
     const posts = getPosts()
     const post = posts.find((x) => x.id === +helpful[1])
     if (!post) throw httpError(404, 'Post not found')
+    post.helpful = post.helpful || []
     post.helpful = post.helpful.includes(ME) ? post.helpful.filter((x) => x !== ME) : [...post.helpful, ME]
+    save(KEYS.posts, posts)
+    return postView(post)
+  }
+  const commentRoute = p.match(/^\/posts\/(\d+)\/comments$/)
+  if (method === 'POST' && commentRoute) {
+    const posts = getPosts()
+    const post = posts.find((x) => x.id === +commentRoute[1])
+    if (!post) throw httpError(404, 'Post not found')
+    const text = String(body?.text || '').trim()
+    if (!text) throw httpError(422, 'Comment cannot be empty')
+    const farm = getFarm()
+    const author = farm.name ? farm.name.split(' ')[0] : 'You'
+    const newComment = {
+      id: Date.now(),
+      author,
+      location: farm.mun ? `${farm.mun}, ${farm.prov}` : farm.prov,
+      text: text.slice(0, 1000),
+      created_at: Date.now(),
+    }
+    post.comments = post.comments || []
+    post.comments.push(newComment)
     save(KEYS.posts, posts)
     return postView(post)
   }
