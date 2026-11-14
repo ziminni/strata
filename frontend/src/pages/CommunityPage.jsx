@@ -522,7 +522,7 @@ function CreatePostPage({ onBack, onCreated, farm, meta, crops, toast, simple })
   return (
     <div className="fixed inset-0 z-50 bg-canvas max-w-[430px] mx-auto flex flex-col h-full overflow-hidden">
       {/* Top Navigation Bar with Back Button */}
-      <header className="flex-none bg-surface border-b border-line px-4 py-3 flex items-center justify-between shadow-xs">
+      <header className="flex-none bg-surface border-b border-line px-4 py-3.5 flex items-center justify-between shadow-xs">
         <button
           type="button"
           onClick={handleBackClick}
@@ -535,14 +535,8 @@ function CreatePostPage({ onBack, onCreated, farm, meta, crops, toast, simple })
 
         <h1 className="text-[17px] font-extrabold text-ink">Create Post</h1>
 
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={posting || !text.trim()}
-          className="btn btn-pri btn-sm py-1.5 px-4 font-bold disabled:opacity-50 transition-all"
-        >
-          {posting ? 'Posting…' : 'Post'}
-        </button>
+        {/* Spacer to keep title centered */}
+        <div className="w-14" aria-hidden="true" />
       </header>
 
       {/* Scrollable Form Body */}
@@ -707,6 +701,18 @@ function CreatePostPage({ onBack, onCreated, farm, meta, crops, toast, simple })
           )}
         </div>
       </div>
+
+      {/* Bottom Sticky Action Footer with Post Button */}
+      <footer className="flex-none bg-surface border-t border-line px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={posting || !text.trim()}
+          className="btn btn-pri w-full py-3.5 text-[15px] font-bold shadow-sm disabled:opacity-50 transition-all active:scale-[0.99]"
+        >
+          {posting ? 'Posting…' : 'Post'}
+        </button>
+      </footer>
 
       {/* Discard Confirmation Modal */}
       {showConfirmDiscard && (
