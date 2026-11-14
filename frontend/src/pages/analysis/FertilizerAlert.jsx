@@ -13,7 +13,7 @@ export default function FertilizerAlert({ clim }) {
     return (
       <DashCard icon="alert" tone="r" title="Hold the fertilizer" label="Fertilizer alert">
         <p className="m-0 text-[15px] leading-[1.5] text-ink-soft">
-          <b className="text-danger">Heavy rain {a.rainName}</b> ({fmtD(a.rain.d)}, {a.rain.chance}% chance). Don’t apply urea or other fertilizer until <b className="text-ink">{a.safeName}</b>. The rain would wash it off your field and waste your money.
+          <b className="text-danger">Heavy rain {a.rainName}</b> ({fmtD(a.rain.d)}{a.mm != null ? `, about ${a.mm} mm` : ''}, {a.rain.chance}% chance). Don’t apply urea or other fertilizer until <b className="text-ink">{a.safeName}</b>. The rain would wash it off your field and waste your money.
         </p>
       </DashCard>
     )
@@ -21,7 +21,7 @@ export default function FertilizerAlert({ clim }) {
     return (
       <DashCard icon="drop" tone="b" title="Fertilize with care" label="Fertilizer alert">
         <p className="m-0 text-[15px] leading-[1.5] text-ink-soft">
-          Light rain {a.rainName} ({a.rain.chance}% chance). If you need to fertilize, do it on <b className="text-ink">{a.safeName}</b>, early in the morning.
+          Some rain {a.rainName} ({a.mm != null ? `about ${a.mm} mm, ` : ''}{a.rain.chance}% chance). If you need to fertilize, do it on <b className="text-ink">{a.safeName}</b>, early in the morning.
         </p>
       </DashCard>
     )

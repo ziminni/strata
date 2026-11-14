@@ -51,9 +51,14 @@ function FragmentTab({ i, label, on, onPick }) {
 }
 
 export default function AnalysisPage() {
-  const { mode } = useApp()
+  const { mode, farmRequest, farmPending } = useApp()
   const overlay = mode === 'simple' // header + switch float over the sky
-  const [index, setIndex] = useState(0)
+  // open straight on Farm if a freshly analysed crop is waiting to be shown
+  const [index, setIndex] = useState(() => {
+    if (!farmPending.current) return 0
+    farmPending.current = false
+    return 1
+  })
   const [peekY, setPeekY] = useState(0) // scroll offset while the hidden panel is being revealed
   const track = useRef(null)
   const drag = useRef(null)
@@ -94,6 +99,14 @@ export default function AnalysisPage() {
       el.addEventListener('transitionend', done)
     })
   }
+
+  // already on Home: slide over to Farm
+  useEffect(() => {
+    if (!farmPending.current) return
+    farmPending.current = false
+    animateTo(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmRequest])
 
   /* ---------- swipe ---------- */
   const onPointerDown = (e) => {

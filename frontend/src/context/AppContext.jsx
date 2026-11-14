@@ -4,6 +4,7 @@ import { useApi } from '../hooks/useApi'
 import { useSensor } from '../hooks/useSensor'
 import { lsGet, lsSet, parseYmd } from '../lib/format'
 import { isRice, seasonSummary, stateOn } from '../lib/season'
+import { loadForecast } from '../lib/weather'
 
 const AppCtx = createContext(null)
 export const useApp = () => useContext(AppCtx)
@@ -22,8 +23,12 @@ export function AppProvider({ children }) {
   const [bootError, setBootError] = useState(null)
   const [farmVersion, setFarmVersion] = useState(0)
   const [postsVersion, setPostsVersion] = useState(0)
-  const [plotsVersion, setPlotsVersion] = useState(0) // bump when fields change so the dashboard tip refreshes
-  const bumpPlots = useCallback(() => setPlotsVersion((v) => v + 1), [])
+  const [cropVersion, setCropVersion] = useState(0) // bump when the farmer's crop changes so Home and Farm refresh
+  const bumpCrop = useCallback(() => setCropVersion((v) => v + 1), [])
+  const [cropSheetOpen, setCropSheetOpen] = useState(false)
+  // ask Home to slide to its Farm tab (after the crop is analysed)
+  const farmPending = useRef(false)
+  const [farmRequest, setFarmRequest] = useState(0)
 
   const [mode, setModeState] = useState(() => (lsGet('strata_mode') === 'detailed' ? 'detailed' : 'simple'))
   const [page, setPage] = useState(pageFromHash)
@@ -50,6 +55,29 @@ export function AppProvider({ children }) {
   }, [])
   useEffect(boot, [boot])
 
+  /* ---------- real weather forecast (Open-Meteo), refreshed every 30 min ---------- */
+  const [wxVersion, setWxVersion] = useState(0) // bumps when new forecast data arrives so weather cards re-render
+  // only once the farmer has added a crop; read it at the crop's pinned spot, else the province centre
+  const { data: wxCrop } = useApi(farm ? '/crop' : null, [cropVersion, farmVersion])
+  const wxProv = wxCrop ? farm?.prov : null
+  const wxPv = wxProv && meta?.provinces?.[wxProv]
+  const wxLat = wxCrop?.lat ?? wxPv?.lat
+  const wxLon = wxCrop?.lon ?? wxPv?.lon
+  useEffect(() => {
+    if (!wxProv || wxLat == null || wxLon == null) return
+    let alive = true
+    const load = () =>
+      loadForecast(wxProv, wxLat, wxLon)
+        .then(() => alive && setWxVersion((v) => v + 1))
+        .catch((e) => console.warn('[weather] live forecast unavailable, using climatology:', e.message))
+    load()
+    const id = setInterval(load, 30 * 60e3)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [wxProv, wxLat, wxLon])
+
   const seasonRes = useApi(farm ? '/season' : null, [farmVersion])
   const season = useMemo(() => {
     const d = seasonRes.data
@@ -65,6 +93,17 @@ export function AppProvider({ children }) {
     setToastMsg(m)
     clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToastMsg(''), 1800)
+  }, [])
+
+  const openFarm = useCallback(() => {
+    farmPending.current = true
+    setFarmRequest((n) => n + 1)
+    setPage('analysis')
+    try {
+      history.replaceState(null, '', '#analysis')
+    } catch {
+      /* ignore */
+    }
   }, [])
 
   const go = useCallback((p) => {
@@ -156,8 +195,8 @@ export function AppProvider({ children }) {
   }
 
   const value = {
-    meta, crops, farm, logs, season, sensor, todayState, riceNow, bootError, boot,
-    farmVersion, postsVersion, plotsVersion, bumpPlots,
+    meta, crops, farm, logs, season, sensor, wxVersion, todayState, riceNow, bootError, boot,
+    farmVersion, postsVersion, cropVersion, bumpCrop, cropSheetOpen, setCropSheetOpen, openFarm, farmRequest, farmPending,
     mode, setMode, page, go, lang, setLang,
     farmSheetOpen, setFarmSheetOpen, drawerOpen, setDrawerOpen, logout, logRequest, setLogRequest, openLog,
     toastMsg, toast, saveFarm, addLog,

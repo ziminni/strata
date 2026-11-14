@@ -2,8 +2,10 @@
 // backend/app/routers/*, with data kept in localStorage on this device.
 import { CROPS, DEFAULT_FARM, FARM_CROPS, LOGTYPES, MON, PLANS, POST_TYPES, PROV, SAMPLE_POSTS, SCEN } from './data'
 import { activePlan, ADVICE_CROPS, buildSegs, climSummary, cropAdvice, evaluatePlan, rankedView, segView } from './engine'
+import { LIKELIHOOD_TIER, LIKELIHOOD_VERDICT, modelReasons } from '../lib/model'
 
 const ME = 'me'
+
 const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v8', plots: 'strata_plots' }
 
 function load(key, fallback) {
@@ -81,8 +83,13 @@ function seedPosts() {
 const getFarm = () => normalizeFarm(load(KEYS.farm, () => ({})))
 const getLogs = () => load(KEYS.logs, () => [])
 const getPosts = () => load(KEYS.posts, () => save(KEYS.posts, seedPosts()))
-const getPlots = () => load(KEYS.plots, () => [])
 const nextId = (rows) => rows.reduce((m, r) => Math.max(m, r.id), 0) + 1
+
+// The farmer has ONE crop at a time. Older builds stored a list, so keep only the newest entry.
+const getCrop = () => {
+  const v = load(KEYS.plots, () => null)
+  return Array.isArray(v) ? [...v].sort((a, b) => b.created_at - a.created_at)[0] || null : v
+}
 
 /* ---------- validation (mirrors backend/app/schemas.py) ---------- */
 const oneOf = (v, opts, d) => (opts.includes(v) ? v : d)
@@ -96,7 +103,7 @@ function normalizeFarm(f = {}) {
   const prov = PROV[f.prov] ? f.prov : d.prov
   const w = f.w || {}
   return {
-    name: String(f.name ?? '').slice(0, 80),
+    name: String(f.name ?? '').trim().slice(0, 80) || d.name,
     prov,
     mun: PROV[prov].mun.includes(f.mun) ? f.mun : PROV[prov].mun[0],
     area: num(f.area, 0.1, 1000, d.area),
@@ -124,7 +131,7 @@ function postView(p) {
     crop: p.crop,
     prov: p.prov,
     mun: p.mun,
-    author: p.mine ? 'You' : p.author_label,
+    author: p.mine ? getFarm().name : p.author_label, // your own posts show your current name
     mine: p.mine,
     verified: p.verified,
     sample: p.sample,
@@ -156,7 +163,7 @@ function addPost(text, type, crop, image = '', images = [], place = '', mun = ''
     crop: crop || '',
     prov: pr,
     mun: m,
-    author_label: (farm.name ? farm.name.split(' ')[0] : 'Farmer') + ' · ' + m,
+    author_label: farm.name,
     mine: true,
     verified: false,
     sample: false,
@@ -283,7 +290,7 @@ export async function handle(method, path, body) {
     const text = String(body?.text || '').trim()
     if (!text) throw httpError(422, 'Comment cannot be empty')
     const farm = getFarm()
-    const author = farm.name ? farm.name.split(' ')[0] : 'You'
+    const author = farm.name
     const newComment = {
       id: Date.now(),
       author,
@@ -306,45 +313,62 @@ export async function handle(method, path, body) {
     const moist = q.has('moist') ? num(q.get('moist'), 0, 100, null) : null
     return { prov, water, start: isoDate(start), crops: cropAdvice({ ...base, prov, water }, start, moist) }
   }
-  if (route === 'GET /plots') return [...getPlots()].sort((a, b) => b.created_at - a.created_at)
-  if (route === 'POST /plots') {
+  if (route === 'GET /crop') return getCrop()
+  if (route === 'PUT /crop') {
     const b = body || {}
     if (!PROV[b.prov]) throw httpError(422, 'Pick a province')
     if (!ADVICE_CROPS.includes(b.crop)) throw httpError(422, 'Pick a crop')
     const planted = parseDate(b.planted)
     if (!planted) throw httpError(422, 'Pick a planting date')
-    const water = oneOf(b.water, ['canal', 'limited', 'rainfed'], 'canal')
+    const farm = getFarm()
+    // the form only asks for crop, location and start date; water and size come from the farm profile
+    const water = oneOf(b.water, ['canal', 'limited', 'rainfed'], farm.water)
     const moist = b.moist == null ? null : num(b.moist, 0, 100, null)
-    // score on our side so the snapshot can't be tampered with
-    const [advice] = cropAdvice({ ...getFarm(), prov: b.prov, water }, planted, moist, b.crop)
-    if (advice.tier === 'not_recommended' && !b.acknowledged) throw httpError(422, 'Confirm that you want to plant a not-recommended crop')
-    const plots = getPlots()
+    const ctx = { ...farm, prov: b.prov, water }
+    // analyse on our side so the snapshot can't be tampered with
+    const [advice] = cropAdvice(ctx, planted, moist, b.crop)
+    // timing check: is the chosen start date a good time? scan the next ~4 months for a better start
+    let best = { start: planted, score: advice.score }
+    for (let i = 7; i <= 120; i += 7) {
+      const d = new Date(planted.getFullYear(), planted.getMonth(), planted.getDate() + i)
+      const [a] = cropAdvice(ctx, d, null, b.crop)
+      if (a.score > best.score) best = { start: d, score: a.score }
+    }
+    const timing = {
+      verdict: advice.tier === 'recommended' ? 'good' : advice.tier === 'possible' ? 'okay' : 'poor',
+      better_start: best.score >= advice.score + 8 ? isoDate(best.start) : null,
+      better_score: best.score >= advice.score + 8 ? best.score : null,
+    }
+    // STRATA crop model result (sent by the client, see src/lib/model.js) overrides the built-in score and timing
+    const model = b.model && LIKELIHOOD_TIER[b.model.likelihood] ? b.model : null
+    if (model) {
+      const best = model.best_date && model.best_date !== isoDate(planted) ? model.best_date : null
+      timing.verdict = LIKELIHOOD_VERDICT[model.likelihood]
+      timing.better_start = best
+      timing.better_score = null // the model scores one window; it gives a better date, not a second score
+    }
     const plot = {
-      id: nextId(plots),
-      name: String(b.name || '').trim().slice(0, 40) || `Field ${plots.length + 1}`,
+      name: String(b.name || '').trim().slice(0, 40) || 'My field',
       prov: b.prov,
       mun: PROV[b.prov].mun.includes(b.mun) ? b.mun : PROV[b.prov].mun[0],
       lat: Number.isFinite(+b.lat) && b.lat !== null ? +b.lat : null,
       lon: Number.isFinite(+b.lon) && b.lon !== null ? +b.lon : null,
-      area: num(b.area, 0.01, 1000, 1),
+      area: num(b.area ?? farm.area, 0.01, 1000, 1),
       water,
+      timing,
       crop: b.crop,
       planted: isoDate(planted),
-      score: advice.score,
-      tier: advice.tier,
-      reasons: advice.reasons,
+      // end of the farmer's planting window (the start is `planted`)
+      planted_end: parseDate(b.planted_end) && parseDate(b.planted_end) >= planted ? isoDate(parseDate(b.planted_end)) : null,
+      score: model ? model.score : advice.score,
+      tier: model ? LIKELIHOOD_TIER[model.likelihood] : advice.tier,
+      reasons: model ? [...modelReasons(model), ...advice.reasons] : advice.reasons,
+      model,
       harvest: advice.harvest,
       created_at: Date.now(),
     }
-    save(KEYS.plots, [plot, ...plots])
+    save(KEYS.plots, plot) // replaces the previous crop
     return plot
-  }
-  const plotId = p.match(/^\/plots\/(\d+)$/)
-  if (method === 'DELETE' && plotId) {
-    const plots = getPlots()
-    if (!plots.some((x) => x.id === +plotId[1])) throw httpError(404, 'Field not found')
-    save(KEYS.plots, plots.filter((x) => x.id !== +plotId[1]))
-    return { ok: true }
   }
 
   if (route === 'POST /chat')

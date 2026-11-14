@@ -47,6 +47,10 @@ const FACES = {
   thinking: { look: [5, -4], brows: 'M70 84Q80 81 90 84M110 78Q120 71 130 79', mouth: 'M92 128Q101 124 110 129' },
   sad: { look: [0, 4], brows: 'M70 84Q80 80 90 77M110 77Q120 80 130 84', mouth: 'M88 132Q100 121 112 132' },
   surprised: { look: [0, 0], pupil: 4.5, brows: RAISED, mouth: 'o' },
+  love: { eyes: 'heart', brows: RAISED, mouth: 'grin-big' },
+  lookL: { look: [-5, 1], brows: 'M70 83Q80 78 90 83M110 83Q120 78 130 83', mouth: 'grin' },
+  lookR: { look: [5, 1], brows: 'M70 83Q80 78 90 83M110 83Q120 78 130 83', mouth: 'grin' },
+  worried: { look: [0, 2], brows: 'M70 84Q80 80 90 77M110 77Q120 80 130 84', mouth: 'M88 129q4-5 8 0t8 0t8 0' },
 }
 
 function OpenEye({ x, look = [0, 0], pupil = 7 }) {
@@ -61,6 +65,9 @@ function OpenEye({ x, look = [0, 0], pupil = 7 }) {
   )
 }
 
+const HeartEye = ({ x }) => (
+  <path className="tata-expr" d={`M${x} 112 C${x - 16} 101 ${x - 12} 88 ${x} 96 C${x + 12} 88 ${x + 16} 101 ${x} 112Z`} fill="#e5566b" stroke={INK} strokeWidth="3" strokeLinejoin="round" />
+)
 const ArcEye = ({ x }) => <path d={`M${x - 10} 104 Q${x} 92 ${x + 10} 104`} fill="none" stroke={INK} strokeWidth="4.5" strokeLinecap="round" />
 
 function Face({ face, blink }) {
@@ -69,6 +76,8 @@ function Face({ face, blink }) {
     <g>
       {f.eyes === 'arc' ? (
         <><ArcEye x={80} /><ArcEye x={120} /></>
+      ) : f.eyes === 'heart' ? (
+        <><HeartEye x={80} /><HeartEye x={120} /></>
       ) : (
         // both eyes share one blink group so they always close together; no blinking mid-wink
         <g className={blink && f.eyes !== 'wink' ? 'tata-blink' : undefined}>
@@ -95,7 +104,6 @@ function Face({ face, blink }) {
 }
 
 /**
- * face    optional expression override (see FACES)
  * animated  dashboard idle motion: bob, breathing shadow, looping wave (CSS in index.css)
  * face      optional expression override (see FACES)
  * wave      'idle' | 'once' — chat-page wave for the raised arm (happy mood only; CSS lives in ChatPage)

@@ -1,4 +1,5 @@
 import AppHeader from './components/AppHeader'
+import ChooseCropSheet from './components/ChooseCropSheet'
 import FarmSheet from './components/FarmSheet'
 import LogSheet from './components/LogSheet'
 import SideDrawer from './components/SideDrawer'
@@ -57,6 +58,7 @@ export default function App() {
           <TabBar />
           <SideDrawer />
           <FarmSheet />
+          <ChooseCropSheet />
           <LogSheet />
         </>
       )}

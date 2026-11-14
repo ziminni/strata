@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
+import { api } from '../api'
 import { useApp } from '../context/AppContext'
+import { fmtD, parseYmd } from '../lib/format'
+import { Icon } from './Icon'
 import { dots } from '../lib/format'
 import { Seg, Sheet } from './ui'
 
@@ -31,8 +34,37 @@ function Num({ label, value, onChange, ...rest }) {
   )
 }
 
+/** "My crop" row: the farmer's one crop, and the way to choose or change it. */
+function MyCrop({ onChoose }) {
+  const { crops, cropVersion } = useApp()
+  const [plot, setPlot] = useState(undefined)
+  useEffect(() => {
+    api.get('/crop').then(setPlot).catch(() => setPlot(null))
+  }, [cropVersion])
+  const c = plot && crops[plot.crop]
+  return (
+    <div className="mb-4 flex items-center gap-3 rounded-[20px] bg-surface2 p-3">
+      <span className="grid size-11 flex-none place-items-center rounded-[14px] text-white [&_.ic]:size-[22px]" style={{ background: c ? c.color : '#b9c4ba' }}><Icon name="sprout" /></span>
+      <div className="min-w-0 flex-1">
+        {plot === undefined ? <span className="text-[14px] text-muted">Loading…</span> : c ? (
+          <>
+            <b className="block font-display text-[17px] leading-tight">{c.fil} <span className="text-[13px] font-semibold text-muted">{c.en}</span></b>
+            <span className="text-[12.5px] text-muted">Planted {fmtD(parseYmd(plot.planted))} · {plot.mun}</span>
+          </>
+        ) : (
+          <>
+            <b className="block text-[15px]">No crop yet</b>
+            <span className="text-[12.5px] text-muted">Tata will recommend one for your field</span>
+          </>
+        )}
+      </div>
+      <button type="button" className={`btn btn-sm flex-none ${c ? '' : 'btn-pri'}`} onClick={onChoose}>{c ? 'Change' : 'Choose'}</button>
+    </div>
+  )
+}
+
 export default function FarmSheet() {
-  const { farmSheetOpen: open, setFarmSheetOpen, farm, meta, saveFarm, toast, mode, setMode } = useApp()
+  const { farmSheetOpen: open, setFarmSheetOpen, setCropSheetOpen, farm, meta, saveFarm, toast, mode, setMode } = useApp()
   const [f, setF] = useState(farm)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -85,6 +117,9 @@ export default function FarmSheet() {
         options={[['simple', 'Simple (farmer)'], ['detailed', 'Detailed (technician)']]}
       />
       <p className="note mb-3.5">Simple: big text, just what to do. Detailed: all scores, charts and NASA data.</p>
+
+      <h2 className="mb-2 text-lg font-bold">My crop</h2>
+      <MyCrop onChoose={() => { close(); setCropSheetOpen(true) }} />
 
       <h2 className="text-lg font-bold">My farm</h2>
       <label className="field-label" htmlFor="f_name">Farmer / farm name</label>
