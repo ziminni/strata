@@ -4,7 +4,7 @@ import { CROPS, DEFAULT_FARM, FARM_CROPS, LOGTYPES, MON, PLANS, POST_TYPES, PROV
 import { activePlan, ADVICE_CROPS, buildSegs, climSummary, cropAdvice, evaluatePlan, rankedView, segView } from './engine'
 
 const ME = 'me'
-const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v6', plots: 'strata_plots' }
+const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v7', plots: 'strata_plots' }
 
 function load(key, fallback) {
   try {
