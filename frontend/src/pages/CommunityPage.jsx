@@ -2,9 +2,19 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { Icon } from '../components/Icon'
 import { MicButton } from '../components/Speech'
-import { Pill, Sheet } from '../components/ui'
+import { Pill } from '../components/ui'
 import { useApp } from '../context/AppContext'
 import { ago } from '../lib/format'
+import { VALENCIA_PLACES } from '../mock/data'
+
+const VALENCIA_BARANGAYS = VALENCIA_PLACES || [
+  'Bagontaas', 'Banlag', 'Barobo', 'Batangan', 'Catumbalon', 'Colonia',
+  'Concepcion', 'Dagat-Kidavao', 'Guinoyuran', 'Kahaponan', 'Laligan',
+  'Lilingayon', 'Lourdes', 'Lumbayao', 'Lumbo', 'Lurogan', 'Maapag',
+  'Mabuhay', 'Mailag', 'Mt. Nebo', 'Nabago', 'Pinatilan', 'Poblacion',
+  'San Carlos', 'San Isidro', 'Sinabuagan', 'Sinayawan', 'Sugod',
+  'Tongantongan', 'Tugaya', 'Vintar',
+]
 
 const AVATAR = ['#2f6b3a', '#2c6e9b', '#8a5a3b', '#7a4a8f', '#c06a1a', '#3f7a74']
 const TYPE_CLS = {
@@ -33,16 +43,138 @@ export function isNewsPost(p) {
   )
 }
 
+function PostImagesGrid({ images, onImageClick }) {
+  if (!images || images.length === 0) return null
+
+  if (images.length === 1) {
+    return (
+      <div className="mt-2.5 border-y border-line/50 bg-black/5 overflow-hidden">
+        <img
+          src={images[0]}
+          alt="Attached farm photograph"
+          className="w-full max-h-[380px] object-cover cursor-pointer hover:brightness-95 transition-all"
+          onClick={() => onImageClick(0)}
+          loading="lazy"
+        />
+      </div>
+    )
+  }
+
+  if (images.length === 2) {
+    return (
+      <div className="mt-2.5 border-y border-line/50 bg-black/5 grid grid-cols-2 gap-1 overflow-hidden">
+        {images.map((img, idx) => (
+          <img
+            key={idx}
+            src={img}
+            alt={`Photo ${idx + 1}`}
+            className="w-full h-[220px] object-cover cursor-pointer hover:brightness-95 transition-all"
+            onClick={() => onImageClick(idx)}
+            loading="lazy"
+          />
+        ))}
+      </div>
+    )
+  }
+
+  if (images.length === 3) {
+    return (
+      <div className="mt-2.5 border-y border-line/50 bg-black/5 grid grid-cols-2 gap-1 overflow-hidden">
+        <img
+          src={images[0]}
+          alt="Photo 1"
+          className="col-span-2 w-full h-[200px] object-cover cursor-pointer hover:brightness-95 transition-all"
+          onClick={() => onImageClick(0)}
+          loading="lazy"
+        />
+        <img
+          src={images[1]}
+          alt="Photo 2"
+          className="w-full h-[150px] object-cover cursor-pointer hover:brightness-95 transition-all"
+          onClick={() => onImageClick(1)}
+          loading="lazy"
+        />
+        <img
+          src={images[2]}
+          alt="Photo 3"
+          className="w-full h-[150px] object-cover cursor-pointer hover:brightness-95 transition-all"
+          onClick={() => onImageClick(2)}
+          loading="lazy"
+        />
+      </div>
+    )
+  }
+
+  if (images.length === 4) {
+    return (
+      <div className="mt-2.5 border-y border-line/50 bg-black/5 grid grid-cols-2 gap-1 overflow-hidden">
+        {images.map((img, idx) => (
+          <img
+            key={idx}
+            src={img}
+            alt={`Photo ${idx + 1}`}
+            className="w-full h-[160px] object-cover cursor-pointer hover:brightness-95 transition-all"
+            onClick={() => onImageClick(idx)}
+            loading="lazy"
+          />
+        ))}
+      </div>
+    )
+  }
+
+  // 5 images
+  return (
+    <div className="mt-2.5 border-y border-line/50 bg-black/5 grid grid-cols-6 gap-1 overflow-hidden">
+      <img
+        src={images[0]}
+        alt="Photo 1"
+        className="col-span-3 w-full h-[180px] object-cover cursor-pointer hover:brightness-95 transition-all"
+        onClick={() => onImageClick(0)}
+        loading="lazy"
+      />
+      <img
+        src={images[1]}
+        alt="Photo 2"
+        className="col-span-3 w-full h-[180px] object-cover cursor-pointer hover:brightness-95 transition-all"
+        onClick={() => onImageClick(1)}
+        loading="lazy"
+      />
+      <img
+        src={images[2]}
+        alt="Photo 3"
+        className="col-span-2 w-full h-[130px] object-cover cursor-pointer hover:brightness-95 transition-all"
+        onClick={() => onImageClick(2)}
+        loading="lazy"
+      />
+      <img
+        src={images[3]}
+        alt="Photo 4"
+        className="col-span-2 w-full h-[130px] object-cover cursor-pointer hover:brightness-95 transition-all"
+        onClick={() => onImageClick(3)}
+        loading="lazy"
+      />
+      <img
+        src={images[4]}
+        alt="Photo 5"
+        className="col-span-2 w-full h-[130px] object-cover cursor-pointer hover:brightness-95 transition-all"
+        onClick={() => onImageClick(4)}
+        loading="lazy"
+      />
+    </div>
+  )
+}
+
 function FacebookPost({ p, crops, farm, onLike, onComment, toast }) {
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
-  const [imageModal, setImageModal] = useState(false)
+  const [activeImageIdx, setActiveImageIdx] = useState(null)
 
   const color = AVATAR[[...p.author].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR.length]
   const comments = p.comments || []
   const likesCount = p.helpful_count || 0
   const isLiked = p.helped
+  const postImages = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image ? [p.image] : []
 
   const handleSendComment = async (e) => {
     e?.preventDefault()
@@ -118,18 +250,8 @@ function FacebookPost({ p, crops, farm, onLike, onComment, toast }) {
         )}
       </div>
 
-      {/* Post Image */}
-      {p.image && (
-        <div className="mt-2.5 border-y border-line/50 bg-black/5 overflow-hidden">
-          <img
-            src={p.image}
-            alt="Attached farm photograph"
-            className="w-full max-h-[380px] object-cover cursor-pointer hover:brightness-95 transition-all"
-            onClick={() => setImageModal(true)}
-            loading="lazy"
-          />
-        </div>
-      )}
+      {/* Post Images Grid */}
+      <PostImagesGrid images={postImages} onImageClick={(idx) => setActiveImageIdx(idx)} />
 
       {/* Social Engagement Counters */}
       <div className="flex items-center justify-between px-4 pt-2.5 pb-1 text-[12.5px] text-muted">
@@ -251,21 +373,67 @@ function FacebookPost({ p, crops, farm, onLike, onComment, toast }) {
         </div>
       )}
 
-      {/* Lightbox Modal for Image */}
-      {imageModal && (
+      {/* Lightbox Carousel for Post Images */}
+      {activeImageIdx !== null && postImages[activeImageIdx] && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm cursor-zoom-out"
-          onClick={() => setImageModal(false)}
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setActiveImageIdx(null)}
         >
-          <div className="relative max-w-[430px] max-h-[85vh] overflow-hidden rounded-2xl bg-black">
-            <button
-              type="button"
-              className="absolute top-3 right-3 z-10 grid size-8 place-items-center rounded-full bg-black/60 text-white hover:bg-black"
-              onClick={() => setImageModal(false)}
-            >
-              <Icon name="close" className="size-5" />
-            </button>
-            <img src={p.image} alt="Full view" className="max-h-[80vh] w-full object-contain" />
+          <div
+            className="relative max-w-[430px] w-full max-h-[88vh] flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Bar with Counter and Close */}
+            <div className="w-full flex items-center justify-between text-white pb-3 px-2">
+              <span className="text-[13px] font-semibold text-white/80">
+                Photo {activeImageIdx + 1} of {postImages.length}
+              </span>
+              <button
+                type="button"
+                className="grid size-8 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40 transition-colors"
+                onClick={() => setActiveImageIdx(null)}
+                aria-label="Close photo"
+              >
+                <Icon name="close" className="size-5" />
+              </button>
+            </div>
+
+            {/* Main Image */}
+            <div className="relative w-full max-h-[75vh] flex items-center justify-center overflow-hidden rounded-2xl bg-black/40">
+              <img
+                src={postImages[activeImageIdx]}
+                alt={`Photo ${activeImageIdx + 1}`}
+                className="max-h-[75vh] w-full object-contain"
+              />
+
+              {/* Prev / Next buttons */}
+              {postImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 grid size-9 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-transform active:scale-95"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setActiveImageIdx((prev) => (prev > 0 ? prev - 1 : postImages.length - 1))
+                    }}
+                    aria-label="Previous photo"
+                  >
+                    <Icon name="chevron" className="size-5 rotate-180 stroke-[2.5]" />
+                  </button>
+                  <button
+                    type="button"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 grid size-9 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-transform active:scale-95"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setActiveImageIdx((prev) => (prev < postImages.length - 1 ? prev + 1 : 0))
+                    }}
+                    aria-label="Next photo"
+                  >
+                    <Icon name="chevron" className="size-5 stroke-[2.5]" />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -273,25 +441,65 @@ function FacebookPost({ p, crops, farm, onLike, onComment, toast }) {
   )
 }
 
-function CreatePostSheet({ open, onClose, onCreated, farm, meta, crops, toast, simple }) {
+/** Dedicated Full Page for Creating a Post with Back Confirmation & Multi-image upload (up to 5) */
+function CreatePostPage({ onBack, onCreated, farm, meta, crops, toast, simple }) {
+  const defaultCrop = meta?.farm_crops?.[0] || 'rice'
+  const defaultPlace = farm?.mun && VALENCIA_BARANGAYS.includes(farm.mun) ? farm.mun : 'Bagontaas'
   const [text, setText] = useState('')
   const [type, setType] = useState('update')
-  const [crop, setCrop] = useState('')
-  const [image, setImage] = useState('')
+  const [crop, setCrop] = useState(defaultCrop)
+  const [place, setPlace] = useState(defaultPlace)
+  const [images, setImages] = useState([])
   const [posting, setPosting] = useState(false)
+  const [showConfirmDiscard, setShowConfirmDiscard] = useState(false)
 
-  const handleImageFile = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 3 * 1024 * 1024) {
-      toast('Photo must be smaller than 3MB')
+  const isDirty = text.trim().length > 0 || images.length > 0
+
+  const handleBackClick = () => {
+    if (isDirty) {
+      setShowConfirmDiscard(true)
+    } else {
+      onBack()
+    }
+  }
+
+  const handleImageFiles = (e) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    const remainingSlots = 5 - images.length
+    if (remainingSlots <= 0) {
+      toast('Maximum of 5 photos reached')
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => {
-      setImage(reader.result)
+
+    const filesToProcess = files.slice(0, remainingSlots)
+    if (files.length > remainingSlots) {
+      toast(`Added ${remainingSlots} photo(s). Maximum is 5 photos per post.`)
     }
-    reader.readAsDataURL(file)
+
+    filesToProcess.forEach((file) => {
+      if (file.size > 5 * 1024 * 1024) {
+        toast(`${file.name} is larger than 5MB`)
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = () => {
+        setImages((prev) => (prev.length < 5 ? [...prev, reader.result] : prev))
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const removeImage = (indexToRemove) => {
+    setImages((prev) => prev.filter((_, idx) => idx !== indexToRemove))
+  }
+
+  const addSampleImage = (imgPath) => {
+    if (images.length >= 5) {
+      toast('Maximum of 5 photos reached')
+      return
+    }
+    setImages((prev) => [...prev, imgPath])
   }
 
   const handleCreate = async () => {
@@ -299,13 +507,17 @@ function CreatePostSheet({ open, onClose, onCreated, farm, meta, crops, toast, s
     if (!t) return toast('Write something before posting')
     setPosting(true)
     try {
-      const p = await api.post('/posts', { text: t, type, crop, image })
+      const p = await api.post('/posts', {
+        text: t,
+        type,
+        crop: crop || defaultCrop,
+        place,
+        mun: place,
+        prov: 'Valencia City',
+        image: images[0] || '',
+        images,
+      })
       onCreated(p)
-      setText('')
-      setCrop('')
-      setImage('')
-      setType('update')
-      onClose()
       toast('Post published to community!')
     } catch (e) {
       toast(e.message || 'Unable to publish post')
@@ -314,131 +526,273 @@ function CreatePostSheet({ open, onClose, onCreated, farm, meta, crops, toast, s
     }
   }
 
-  const cropOptions = (meta?.farm_crops || []).map((k) => (
+  // Choices only include actual crops, without "Crop (Optional)"
+  const availableCrops = meta?.farm_crops || ['rice', 'mais', 'tabako']
+  const cropOptions = availableCrops.map((k) => (
     <option key={k} value={k}>
       {crops[k]?.fil || k} ({crops[k]?.en || k})
     </option>
   ))
 
   return (
-    <Sheet open={open} onClose={onClose} label="Create Post">
-      <div className="flex items-center justify-between pb-2 border-b border-line/60">
-        <h2 className="text-[18px] font-extrabold text-ink">Create a Post</h2>
+    <div className="fixed inset-0 z-50 bg-canvas max-w-[430px] mx-auto flex flex-col h-full overflow-hidden">
+      {/* Top Navigation Bar with Back Button */}
+      <header className="flex-none bg-surface border-b border-line px-4 py-3.5 flex items-center justify-between shadow-xs">
         <button
           type="button"
-          onClick={onClose}
-          className="grid size-8 place-items-center rounded-full text-muted hover:bg-surface2"
-          aria-label="Close"
+          onClick={handleBackClick}
+          className="flex items-center gap-1.5 py-1 px-2 -ml-2 rounded-lg text-ink font-semibold hover:bg-surface2 transition-colors active:scale-95"
+          aria-label="Back to community feed"
         >
-          <Icon name="close" className="size-4" />
+          <Icon name="arrowLeft" className="size-5 stroke-[2.4]" />
+          <span className="text-[14px]">Back</span>
         </button>
-      </div>
 
-      {/* Author summary */}
-      <div className="mt-3 flex items-center gap-2.5">
-        <div
-          className="grid size-9 place-items-center rounded-full font-bold text-white text-[13.5px]"
-          style={{ background: '#1e7f43' }}
-        >
-          {(farm.name ? farm.name[0] : 'Y').toUpperCase()}
-        </div>
-        <div className="min-w-0">
-          <div className="font-bold text-[14px] text-ink">{farm.name || 'You'}</div>
-          <div className="text-[11.5px] text-muted truncate">
-            {farm.mun}, {farm.prov} · Public
+        <h1 className="text-[17px] font-extrabold text-ink">Create Post</h1>
+
+        {/* Spacer to keep title centered */}
+        <div className="w-14" aria-hidden="true" />
+      </header>
+
+      {/* Scrollable Form Body */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-12">
+        {/* Author Info */}
+        <div className="flex items-center gap-3">
+          <div
+            className="grid size-11 flex-none place-items-center rounded-full font-bold text-white text-[15px] shadow-xs"
+            style={{ background: '#1e7f43' }}
+          >
+            {(farm.name ? farm.name[0] : 'Y').toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <div className="font-bold text-[15px] text-ink">{farm.name || 'Farmer'}</div>
+            <div className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full bg-surface2 text-[11px] font-medium text-muted border border-line/60">
+              <Icon name="globe" className="size-3" />
+              <span>Public · {place || 'Bagontaas'}, Valencia City</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Text input with speech */}
-      <div className="mt-3">
+        {/* Text Area with Dictation */}
         <div className="relative">
           <textarea
-            className="field !min-h-[110px] !text-[15px] !leading-relaxed"
-            placeholder={simple ? 'What’s new on your farm?' : 'Share an update, ask questions, or advise your fellow farmers…'}
+            className="field !min-h-[140px] !text-[15.5px] !leading-relaxed !p-3.5"
+            placeholder={
+              simple
+                ? 'What’s new on your farm? (You can type or speak)'
+                : 'Share an update, ask questions, or advise your fellow farmers…'
+            }
             value={text}
             onChange={(e) => setText(e.target.value)}
+            autoFocus
           />
-          <div className="absolute right-2 bottom-2">
-            <MicButton value={text} onChange={setText} onDenied={() => toast('Microphone is off. Please type instead.')} />
+          <div className="absolute right-2.5 bottom-2.5">
+            <MicButton
+              value={text}
+              onChange={setText}
+              onDenied={() => toast('Microphone is off. Please type instead.')}
+            />
           </div>
         </div>
-      </div>
 
-      {/* Post options: Type and Crop */}
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <div>
-          <label className="field-label">Post Type</label>
-          <select className="field" value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="update">Update</option>
-            <option value="question">Question</option>
-            <option value="advice">Advice</option>
-            <option value="warning">Warning</option>
-            <option value="harvest">Harvest</option>
-          </select>
-        </div>
-        <div>
-          <label className="field-label">Tagged Crop</label>
-          <select className="field" value={crop} onChange={(e) => setCrop(e.target.value)}>
-            <option value="">Crop (Optional)</option>
-            {cropOptions}
-          </select>
-        </div>
-      </div>
-
-      {/* Image attachment */}
-      <div className="mt-3">
-        <label className="field-label">Photo Attachment (Optional)</label>
-        {image ? (
-          <div className="relative mt-1 rounded-xl overflow-hidden border border-line bg-surface2 max-h-[180px]">
-            <img src={image} alt="Preview" className="w-full max-h-[180px] object-cover" />
-            <button
-              type="button"
-              className="absolute top-2 right-2 grid size-7 place-items-center rounded-full bg-black/70 text-white hover:bg-black"
-              onClick={() => setImage('')}
-              title="Remove photo"
+        {/* Place / Barangay Field in Valencia City */}
+        <div className="w-full text-left">
+          <label className="field-label !m-0 !mb-1.5 font-bold text-ink-soft text-left flex items-center gap-1">
+            <Icon name="pin" className="size-3.5 text-leaf" />
+            <span>Barangay / Place (Valencia City)</span>
+          </label>
+          <div className="w-full relative">
+            <select
+              className="field w-full text-left font-medium"
+              style={{ textAlign: 'left', textAlignLast: 'left' }}
+              value={place}
+              onChange={(e) => setPlace(e.target.value)}
+              aria-label="Barangay in Valencia City"
             >
-              <Icon name="close" className="size-4" />
-            </button>
+              {VALENCIA_BARANGAYS.map((p) => (
+                <option key={p} value={p}>
+                  {p}, Valencia City
+                </option>
+              ))}
+            </select>
           </div>
-        ) : (
-          <div className="space-y-2">
-            <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-line p-3 text-[13px] font-semibold text-ink cursor-pointer hover:bg-surface2 transition-colors">
-              <Icon name="photo" className="size-5 text-leaf" />
-              <span>Upload a photo from device</span>
-              <input type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
+        </div>
+
+        {/* Tagged Crop Field - Debugged full-width left-aligned layout */}
+        <div className="w-full text-left">
+          <label className="field-label !m-0 !mb-1.5 font-bold text-ink-soft text-left">
+            Tagged Crop
+          </label>
+          <div className="w-full relative">
+            <select
+              className="field w-full text-left font-medium"
+              style={{ textAlign: 'left', textAlignLast: 'left' }}
+              value={crop}
+              onChange={(e) => setCrop(e.target.value)}
+              aria-label="Tagged Crop"
+            >
+              {cropOptions}
+            </select>
+          </div>
+        </div>
+
+        {/* Post Category Field */}
+        <div className="w-full text-left">
+          <label className="field-label !m-0 !mb-1.5 font-bold text-ink-soft text-left">
+            Post Category
+          </label>
+          <div className="w-full relative">
+            <select
+              className="field w-full text-left font-medium"
+              style={{ textAlign: 'left', textAlignLast: 'left' }}
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              aria-label="Post category"
+            >
+              <option value="update">Update</option>
+              <option value="question">Question</option>
+              <option value="advice">Advice</option>
+              <option value="warning">Warning</option>
+              <option value="harvest">Harvest</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Multi-Image Upload Section (Up to 5) */}
+        <div className="w-full text-left pt-1">
+          <div className="flex items-center justify-between mb-2">
+            <label className="field-label !m-0 font-bold text-ink-soft">
+              Photos ({images.length}/5)
             </label>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted">Or pick sample:</span>
+            {images.length > 0 && (
+              <span className="text-[11.5px] text-muted">
+                {images.length === 5 ? 'Maximum reached' : `Can add ${5 - images.length} more`}
+              </span>
+            )}
+          </div>
+
+          {/* Attached Images Grid Preview */}
+          {images.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {images.map((img, idx) => (
+                <div
+                  key={idx}
+                  className="relative aspect-square rounded-xl overflow-hidden border border-line bg-surface2 shadow-xs group"
+                >
+                  <img src={img} alt={`Attached ${idx + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(idx)}
+                    className="absolute top-1.5 right-1.5 grid size-6 place-items-center rounded-full bg-black/75 text-white hover:bg-black transition-transform active:scale-90"
+                    title="Remove photo"
+                    aria-label={`Remove photo ${idx + 1}`}
+                  >
+                    <Icon name="close" className="size-3.5 stroke-[2.5]" />
+                  </button>
+                  <span className="absolute bottom-1 left-1.5 px-1.5 py-0.2 rounded bg-black/60 text-[10px] text-white font-bold">
+                    {idx + 1}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* File Upload Button */}
+          {images.length < 5 ? (
+            <div className="space-y-2">
+              <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-line p-3.5 text-[13.5px] font-semibold text-ink cursor-pointer hover:bg-surface2 transition-colors">
+                <Icon name="photo" className="size-5 text-leaf" />
+                <span>Upload photos ({images.length}/5)</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageFiles}
+                />
+              </label>
+
+              {/* Sample Photo Presets */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-muted">Or add sample photo:</span>
+                <button
+                  type="button"
+                  className="text-[11.5px] font-semibold text-leaf hover:underline bg-leaf-soft/60 px-2.5 py-1 rounded-md transition-colors"
+                  onClick={() => addSampleImage('/posts/sample-post-1.jpg')}
+                >
+                  + Golden Rice
+                </button>
+                <button
+                  type="button"
+                  className="text-[11.5px] font-semibold text-leaf hover:underline bg-leaf-soft/60 px-2.5 py-1 rounded-md transition-colors"
+                  onClick={() => addSampleImage('/posts/sample-post-2.avif')}
+                >
+                  + Tillering Plot
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-leaf-soft/50 border border-leaf/20 px-3 py-2 text-[12px] font-semibold text-leaf-ink flex items-center gap-2">
+              <Icon name="check" className="size-4 text-leaf" />
+              <span>You have attached the maximum of 5 photos.</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Sticky Action Footer with Post Button */}
+      <footer className="flex-none bg-surface border-t border-line px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={posting || !text.trim()}
+          className="btn btn-pri w-full py-3.5 text-[15px] font-bold shadow-sm disabled:opacity-50 transition-all active:scale-[0.99]"
+        >
+          {posting ? 'Posting…' : 'Post'}
+        </button>
+      </footer>
+
+      {/* Discard Confirmation Modal */}
+      {showConfirmDiscard && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="discard-title"
+        >
+          <div className="card w-full max-w-[340px] p-5 rounded-2xl shadow-xl text-center space-y-3 bg-surface border border-line">
+            <div className="grid size-12 place-items-center rounded-2xl bg-danger-soft text-danger mx-auto">
+              <Icon name="alert" className="size-6 stroke-[2.2]" />
+            </div>
+            <h2 id="discard-title" className="text-[18px] font-extrabold text-ink leading-tight">
+              Discard this post?
+            </h2>
+            <p className="note text-[13px] text-ink-soft leading-relaxed">
+              If you leave now, your changes will not be saved.
+            </p>
+            <div className="flex gap-2 pt-2">
               <button
                 type="button"
-                className="text-[11.5px] font-medium text-leaf hover:underline bg-leaf-soft/50 px-2 py-0.5 rounded-md"
-                onClick={() => setImage('/posts/sample-post-1.jpg')}
+                className="btn btn-sec flex-1 font-bold text-[13.5px]"
+                onClick={() => setShowConfirmDiscard(false)}
               >
-                Golden Rice
+                Continue editing
               </button>
               <button
                 type="button"
-                className="text-[11.5px] font-medium text-leaf hover:underline bg-leaf-soft/50 px-2 py-0.5 rounded-md"
-                onClick={() => setImage('/posts/sample-post-2.avif')}
+                className="btn flex-1 bg-danger text-white hover:bg-danger/90 font-bold text-[13.5px]"
+                onClick={() => {
+                  setShowConfirmDiscard(false)
+                  onBack()
+                }}
               >
-                Tillering Plot
+                Discard
               </button>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Modal Actions */}
-      <div className="mt-5 flex gap-2">
-        <button type="button" className="btn flex-1" onClick={onClose} disabled={posting}>
-          Cancel
-        </button>
-        <button type="button" className="btn btn-pri flex-[2]" onClick={handleCreate} disabled={posting}>
-          {posting ? 'Posting…' : 'Post to Community'}
-        </button>
-      </div>
-    </Sheet>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -451,7 +805,7 @@ export default function CommunityPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [placeFilter, setPlaceFilter] = useState('all')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [isCreatingPost, setIsCreatingPost] = useState(false)
 
   useEffect(() => {
     api
@@ -482,7 +836,13 @@ export default function CommunityPage() {
   // Filter posts based on Place and Search query
   const q = searchQuery.toLowerCase().trim()
   const filtered = currentBase.filter((p) => {
-    const matchPlace = placeFilter === 'all' || p.prov === placeFilter
+    const matchPlace =
+      placeFilter === 'all' ||
+      p.mun === placeFilter ||
+      p.prov === placeFilter ||
+      (p.place && p.place === placeFilter) ||
+      (p.location && p.location.toLowerCase().includes(placeFilter.toLowerCase())) ||
+      (p.author_label && p.author_label.toLowerCase().includes(placeFilter.toLowerCase()))
     if (!matchPlace) return false
     if (!q) return true
     const authorMatch = (p.author || '').toLowerCase().includes(q)
@@ -520,13 +880,32 @@ export default function CommunityPage() {
     setVisibleCount(PAGE_SIZE)
   }
 
+  // Render the Dedicated Create Post Page when creating
+  if (isCreatingPost) {
+    return (
+      <CreatePostPage
+        onBack={() => setIsCreatingPost(false)}
+        onCreated={(newPost) => {
+          setPosts((xs) => [newPost, ...(xs || [])])
+          setActiveTab('farmers')
+          setIsCreatingPost(false)
+        }}
+        farm={farm}
+        meta={meta}
+        crops={crops}
+        toast={toast}
+        simple={simple}
+      />
+    )
+  }
+
   return (
     <section className="relative px-4 pt-2 pb-16 min-h-[80vh]" aria-label="Community">
       {/* Header Bar */}
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h1 className="text-[24px] font-extrabold tracking-tight text-ink">Community</h1>
-          <p className="text-[12.5px] text-muted">Farmers & Technical Advisers in Central Luzon</p>
+          <p className="text-[12.5px] text-muted">Farmers & Technical Advisers in Valencia City, Bukidnon</p>
         </div>
         {posts && (
           <span className="rounded-full bg-leaf-soft px-2.5 py-1 text-[11.5px] font-bold text-leaf-ink">
@@ -640,18 +1019,18 @@ export default function CommunityPage() {
             <span>Place:</span>
           </label>
           <select
-            className="field !py-1.5 !text-[13px] !rounded-xl flex-1 font-medium"
+            className="field !py-1.5 !text-[13px] !rounded-xl flex-1 font-medium text-left"
+            style={{ textAlign: 'left', textAlignLast: 'left' }}
             value={placeFilter}
             onChange={handlePlaceChange}
-            aria-label="Filter by place"
+            aria-label="Filter by place in Valencia City"
           >
-            <option value="all">All Places (Central Luzon)</option>
-            {meta?.provinces &&
-              Object.keys(meta.provinces).map((prov) => (
-                <option key={prov} value={prov}>
-                  {prov}
-                </option>
-              ))}
+            <option value="all">All Places (Valencia City, Bukidnon)</option>
+            {VALENCIA_BARANGAYS.map((place) => (
+              <option key={place} value={place}>
+                {place}
+              </option>
+            ))}
           </select>
           {(placeFilter !== 'all' || searchQuery) && (
             <button
@@ -764,29 +1143,13 @@ export default function CommunityPage() {
         <button
           type="button"
           className="pointer-events-auto size-14 rounded-full bg-leaf text-white shadow-[0_8px_25px_-4px_rgba(31,157,85,0.6)] flex items-center justify-center hover:bg-leaf/90 hover:scale-105 active:scale-95 transition-all"
-          onClick={() => setCreateOpen(true)}
+          onClick={() => setIsCreatingPost(true)}
           aria-label="Post a concern or question"
           title="Post a concern or question"
         >
           <Icon name="plus" className="size-7 stroke-[2.5]" />
         </button>
       </div>
-
-      {/* Create Post Modal Sheet */}
-      <CreatePostSheet
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={(newPost) => {
-          setPosts((xs) => [newPost, ...(xs || [])])
-          // Automatically switch to Farmer Concerns so the farmer immediately sees their post
-          setActiveTab('farmers')
-        }}
-        farm={farm}
-        meta={meta}
-        crops={crops}
-        toast={toast}
-        simple={simple}
-      />
     </section>
   )
 }

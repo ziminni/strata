@@ -4,7 +4,7 @@ import { CROPS, DEFAULT_FARM, FARM_CROPS, LOGTYPES, MON, PLANS, POST_TYPES, PROV
 import { activePlan, ADVICE_CROPS, buildSegs, climSummary, cropAdvice, evaluatePlan, rankedView, segView } from './engine'
 
 const ME = 'me'
-const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v7', plots: 'strata_plots' }
+const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v8', plots: 'strata_plots' }
 
 function load(key, fallback) {
   try {
@@ -49,15 +49,16 @@ function seedPosts() {
       const [hours, author, verified, prov, crop, type, text] = sp
       return {
         id: i + 1, text, type, crop, prov, mun: '', author_label: author, mine: false, verified, sample: true,
-        helpful: [], comments: [], image: '', created_at: t - hours * 3600e3,
+        helpful: [], comments: [], image: '', images: [], created_at: t - hours * 3600e3,
       }
     }
+    const imgList = Array.isArray(sp.images) && sp.images.length ? sp.images : (sp.image ? [sp.image] : [])
     return {
       id: i + 1,
       text: sp.text,
       type: sp.type,
       crop: sp.crop || '',
-      prov: sp.prov || 'Nueva Ecija',
+      prov: sp.prov || 'Valencia City',
       mun: sp.mun || '',
       author_label: sp.author,
       mine: false,
@@ -71,7 +72,8 @@ function seedPosts() {
         text: c.text,
         created_at: t - (c.hours || 1) * 3600e3,
       })),
-      image: sp.image || '',
+      image: imgList[0] || '',
+      images: imgList,
       created_at: t - sp.hours * 3600e3,
     }
   })
@@ -114,6 +116,7 @@ function normalizeFarm(f = {}) {
 }
 
 function postView(p) {
+  const imgList = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])
   return {
     id: p.id,
     text: p.text,
@@ -134,28 +137,33 @@ function postView(p) {
       text: c.text,
       created_at: c.created_at,
     })),
-    image: p.image || '',
+    image: imgList[0] || '',
+    images: imgList,
     created_at: p.created_at,
   }
 }
 
-function addPost(text, type, crop, image = '') {
+function addPost(text, type, crop, image = '', images = [], place = '', mun = '', prov = '') {
   const farm = getFarm()
   const posts = getPosts()
+  const imgList = Array.isArray(images) && images.length ? images.slice(0, 5) : (image ? [image] : [])
+  const m = mun || place || farm.mun || 'Bagontaas'
+  const pr = prov || farm.prov || 'Valencia City'
   const p = {
     id: nextId(posts),
     text,
     type,
     crop: crop || '',
-    prov: farm.prov,
-    mun: farm.mun,
-    author_label: (farm.name ? farm.name.split(' ')[0] : 'Farmer') + ' · ' + farm.mun,
+    prov: pr,
+    mun: m,
+    author_label: (farm.name ? farm.name.split(' ')[0] : 'Farmer') + ' · ' + m,
     mine: true,
     verified: false,
     sample: false,
     helpful: [],
     comments: [],
-    image: image || '',
+    image: imgList[0] || '',
+    images: imgList,
     created_at: Date.now(),
   }
   save(KEYS.posts, [p, ...posts])
@@ -242,8 +250,20 @@ export async function handle(method, path, body) {
     const text = String(body?.text || '').trim()
     if (!text) throw httpError(422, 'Write something first')
     if (!POST_TYPES.includes(body.type)) throw httpError(422, 'Unknown post type')
-    const image = typeof body?.image === 'string' ? body.image : ''
-    return addPost(text.slice(0, 2000), body.type, CROPS[body.crop] ? body.crop : '', image)
+    const images = Array.isArray(body?.images)
+      ? body.images.filter((x) => typeof x === 'string' && x).slice(0, 5)
+      : []
+    const image = typeof body?.image === 'string' && body.image ? body.image : (images[0] || '')
+    return addPost(
+      text.slice(0, 2000),
+      body.type,
+      CROPS[body.crop] ? body.crop : '',
+      image,
+      images,
+      body.place || '',
+      body.mun || '',
+      body.prov || ''
+    )
   }
   const helpful = p.match(/^\/posts\/(\d+)\/helpful$/)
   if (method === 'POST' && helpful) {
