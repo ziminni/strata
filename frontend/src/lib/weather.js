@@ -2,7 +2,7 @@
 // Swap for a PAGASA forecast feed in production.
 import { addDays, ymd } from './format'
 
-function rng(seed) {
+export function rng(seed) {
   let h = 2166136261
   for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619)
   return () => {
