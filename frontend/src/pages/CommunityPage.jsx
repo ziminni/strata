@@ -17,6 +17,22 @@ const TYPE_CLS = {
 
 const PAGE_SIZE = 5
 
+export function isNewsPost(p) {
+  if (p.verified) return true
+  if (p.is_news || p.role === 'moderator' || p.role === 'technician') return true
+  const a = (p.author || '').toLowerCase()
+  return (
+    a.includes('technician') ||
+    a.includes('philrice') ||
+    a.includes('rfo') ||
+    a.includes('da ') ||
+    a.includes('nia') ||
+    a.includes('cooperative') ||
+    a.includes('engr.') ||
+    a.includes('moderator')
+  )
+}
+
 function FacebookPost({ p, crops, farm, onLike, onComment, toast }) {
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState('')
@@ -58,11 +74,15 @@ function FacebookPost({ p, crops, farm, onLike, onComment, toast }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5 leading-snug">
             <b className="text-[15px] text-ink font-bold">{p.author}</b>
-            {p.verified && (
+            {isNewsPost(p) ? (
               <span className="inline-flex items-center gap-0.5 rounded-[6px] bg-water-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-water">
-                <Icon name="check" className="size-3" /> Agri technician
+                <Icon name="check" className="size-3" /> Official
               </span>
-            )}
+            ) : p.verified ? (
+              <span className="inline-flex items-center gap-0.5 rounded-[6px] bg-water-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-water">
+                <Icon name="check" className="size-3" /> Verified
+              </span>
+            ) : null}
             {p.sample && (
               <span className="inline-block rounded-[6px] bg-surface2 px-1.5 py-0.5 text-[10.5px] text-muted">
                 Sample
@@ -427,6 +447,7 @@ export default function CommunityPage() {
   const simple = mode === 'simple'
   const [posts, setPosts] = useState(null)
   const [loadError, setLoadError] = useState('')
+  const [activeTab, setActiveTab] = useState('farmers') // 'farmers' | 'news'
   const [searchQuery, setSearchQuery] = useState('')
   const [placeFilter, setPlaceFilter] = useState('all')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
@@ -453,9 +474,14 @@ export default function CommunityPage() {
     setPosts((xs) => (xs || []).map((x) => (x.id === id ? updated : x)))
   }
 
+  // Separate posts into Farmer Concerns and Official News / Advisories
+  const farmerPosts = (posts || []).filter((p) => !isNewsPost(p))
+  const newsPosts = (posts || []).filter((p) => isNewsPost(p))
+  const currentBase = activeTab === 'news' ? newsPosts : farmerPosts
+
   // Filter posts based on Place and Search query
   const q = searchQuery.toLowerCase().trim()
-  const filtered = (posts || []).filter((p) => {
+  const filtered = currentBase.filter((p) => {
     const matchPlace = placeFilter === 'all' || p.prov === placeFilter
     if (!matchPlace) return false
     if (!q) return true
@@ -472,6 +498,11 @@ export default function CommunityPage() {
   // Sliced for pagination (5 posts per page)
   const visiblePosts = filtered.slice(0, visibleCount)
   const hasMore = visibleCount < filtered.length
+
+  const handleTabChange = (tabKey) => {
+    setActiveTab(tabKey)
+    setVisibleCount(PAGE_SIZE)
+  }
 
   const handlePlaceChange = (e) => {
     setPlaceFilter(e.target.value)
@@ -495,7 +526,7 @@ export default function CommunityPage() {
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h1 className="text-[24px] font-extrabold tracking-tight text-ink">Community</h1>
-          <p className="text-[12.5px] text-muted">Farmers across Central Luzon</p>
+          <p className="text-[12.5px] text-muted">Farmers & Technical Advisers in Central Luzon</p>
         </div>
         {posts && (
           <span className="rounded-full bg-leaf-soft px-2.5 py-1 text-[11.5px] font-bold text-leaf-ink">
@@ -503,6 +534,70 @@ export default function CommunityPage() {
           </span>
         )}
       </div>
+
+      {/* Tabs: Farmer Concerns vs News */}
+      <div className="flex rounded-2xl bg-surface2 p-1 mb-3 border border-line/70 shadow-xs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'farmers'}
+          onClick={() => handleTabChange('farmers')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-[13.5px] font-bold transition-all ${
+            activeTab === 'farmers'
+              ? 'bg-surface text-leaf shadow-sm'
+              : 'text-muted hover:text-ink'
+          }`}
+        >
+          <Icon name="users" className="size-4 stroke-[2.2]" />
+          <span>Farmer Concerns</span>
+          {posts && (
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
+                activeTab === 'farmers' ? 'bg-leaf-soft text-leaf-ink' : 'bg-line/70 text-muted'
+              }`}
+            >
+              {farmerPosts.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'news'}
+          onClick={() => handleTabChange('news')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-[13.5px] font-bold transition-all ${
+            activeTab === 'news'
+              ? 'bg-surface text-water shadow-sm'
+              : 'text-muted hover:text-ink'
+          }`}
+        >
+          <Icon name="note" className="size-4 stroke-[2.2]" />
+          <span>News & Advisories</span>
+          {posts && (
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
+                activeTab === 'news' ? 'bg-water-soft text-water' : 'bg-line/70 text-muted'
+              }`}
+            >
+              {newsPosts.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Tab Context Banner */}
+      {activeTab === 'news' ? (
+        <div className="mb-3 px-3.5 py-2 rounded-xl bg-water-soft/50 border border-water/20 text-[12.5px] text-water font-medium flex items-center gap-2">
+          <Icon name="check" className="size-4 flex-none" />
+          <span>Official announcements, bulletins, and crop guidance from Agri Technicians, PhilRice, and DA.</span>
+        </div>
+      ) : (
+        <div className="mb-3 px-3.5 py-2 rounded-xl bg-leaf-soft/40 border border-leaf/20 text-[12.5px] text-leaf-ink font-medium flex items-center gap-2">
+          <Icon name="users" className="size-4 flex-none text-leaf" />
+          <span>Questions, pest reports, and field updates shared by fellow local farmers.</span>
+        </div>
+      )}
 
       {/* Search Bar + Places Filter Dropdown */}
       <div className="card mb-3.5 p-3 space-y-2.5 shadow-card border border-line">
@@ -515,7 +610,11 @@ export default function CommunityPage() {
             type="search"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Search posts, farmers, topics, or crops…"
+            placeholder={
+              activeTab === 'news'
+                ? 'Search news, technician advisories, or topics…'
+                : 'Search farmer questions, field updates, or crops…'
+            }
             className="field !pl-9 !pr-8 !py-2 !text-[13.5px] !rounded-xl"
             aria-label="Search posts"
           />
@@ -571,7 +670,7 @@ export default function CommunityPage() {
         {posts === null && !loadError && (
           <div className="card py-12 text-center">
             <div className="inline-block size-6 animate-spin rounded-full border-2 border-leaf border-t-transparent mb-2" />
-            <p className="note text-[13.5px]">Loading community feed…</p>
+            <p className="note text-[13.5px]">Loading {activeTab === 'news' ? 'news & advisories' : 'farmer concerns'}…</p>
           </div>
         )}
 
@@ -599,11 +698,17 @@ export default function CommunityPage() {
                 <div className="grid size-12 place-items-center rounded-2xl bg-surface2 text-muted mx-auto mb-2.5">
                   <Icon name="search" className="size-6 stroke-[2]" />
                 </div>
-                <h3 className="text-[16px] font-bold text-ink">No matching posts found</h3>
+                <h3 className="text-[16px] font-bold text-ink">
+                  {activeTab === 'news'
+                    ? 'No official news found matching these filters'
+                    : 'No farmer concerns found matching these filters'}
+                </h3>
                 <p className="note text-[13px] mt-1 max-w-[280px] mx-auto">
                   {searchQuery || placeFilter !== 'all'
-                    ? 'Try clearing your search or picking "All Places".'
-                    : 'Be the first farmer to share a post with the community!'}
+                    ? 'Try clearing your search or selecting "All Places".'
+                    : activeTab === 'news'
+                      ? 'Official bulletins from agri technicians will appear here.'
+                      : 'Be the first farmer to post a question or concern!'}
                 </p>
                 {(searchQuery || placeFilter !== 'all') && (
                   <button type="button" className="btn btn-sec btn-sm mt-3" onClick={clearFilters}>
@@ -660,8 +765,8 @@ export default function CommunityPage() {
           type="button"
           className="pointer-events-auto size-14 rounded-full bg-leaf text-white shadow-[0_8px_25px_-4px_rgba(31,157,85,0.6)] flex items-center justify-center hover:bg-leaf/90 hover:scale-105 active:scale-95 transition-all"
           onClick={() => setCreateOpen(true)}
-          aria-label="Create a post"
-          title="Create a post"
+          aria-label="Post a concern or question"
+          title="Post a concern or question"
         >
           <Icon name="plus" className="size-7 stroke-[2.5]" />
         </button>
@@ -673,6 +778,8 @@ export default function CommunityPage() {
         onClose={() => setCreateOpen(false)}
         onCreated={(newPost) => {
           setPosts((xs) => [newPost, ...(xs || [])])
+          // Automatically switch to Farmer Concerns so the farmer immediately sees their post
+          setActiveTab('farmers')
         }}
         farm={farm}
         meta={meta}
