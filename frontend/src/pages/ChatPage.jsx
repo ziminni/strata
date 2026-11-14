@@ -42,7 +42,7 @@ export default function ChatPage() {
   }
 
   return (
-    <section className="px-4 pt-1.5 pb-2.5" aria-label="Ask Strata">
+    <section className="px-4 pt-1.5 pb-2.5" aria-label="Ask Tata">
       <div className="card mt-2 flex h-[calc(100dvh-196px)] min-h-[420px] flex-col p-3">
         <div ref={list} className="flex-1 overflow-auto px-0.5 py-1" aria-live="polite">
           {messages.length ? (

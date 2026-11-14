@@ -1,7 +1,7 @@
 // UI labels shared across views.
 export const TAB_LABELS = {
-  simple: { analysis: 'Home', map: 'Map', crops: 'My crops', community: 'Community', chat: 'Ask Strata', diagnose: 'Diagnose' },
-  detailed: { analysis: 'Home', map: 'Map', crops: 'My crops', community: 'Community', chat: 'Ask Strata', diagnose: 'Diagnose' },
+  simple: { analysis: 'Home', map: 'Map', crops: 'My crops', community: 'Community', chat: 'Ask Tata', diagnose: 'Diagnose' },
+  detailed: { analysis: 'Home', map: 'Map', crops: 'My crops', community: 'Community', chat: 'Ask Tata', diagnose: 'Diagnose' },
 }
 
 // Quick-log buttons in Simple mode: [label, icon, bg, fg]

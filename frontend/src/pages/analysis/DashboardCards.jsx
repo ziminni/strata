@@ -147,7 +147,7 @@ export default function DashboardCards() {
       {/* quick actions */}
       <div className="mt-[22px] grid grid-cols-3 gap-2.5">
         <button type="button" onClick={() => go('chat')} className="col-span-3 flex min-h-[72px] items-center justify-center gap-2 rounded-[20px] bg-paddy p-4 text-[19px] font-bold text-white shadow-card">
-          <span className="grid size-12 place-items-center rounded-2xl bg-white/15 [&_.ic]:size-[26px]"><Icon name="chat" /></span>Ask Strata
+          <span className="grid size-12 place-items-center rounded-2xl bg-white/15 [&_.ic]:size-[26px]"><Icon name="chat" /></span>Ask Tata
         </button>
         {['harvest', 'observation', 'activity', 'irrigation', 'weather', 'planting'].map((k) => {
           const [t, i, bg, fg] = QA_TYPES[k]
