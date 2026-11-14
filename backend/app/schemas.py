@@ -86,6 +86,7 @@ class PostIn(BaseModel):
     type: PostType = "update"
     crop: str = ""
     image: str = ""
+    images: List[str] = Field(default_factory=list)
 
     @field_validator("crop")
     @classmethod

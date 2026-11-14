@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS posts (
   helpful TEXT NOT NULL DEFAULT '[]',
   comments TEXT NOT NULL DEFAULT '[]',
   image TEXT NOT NULL DEFAULT '',
+  images TEXT NOT NULL DEFAULT '[]',
   created_at INTEGER NOT NULL
 );
 """
@@ -71,6 +72,8 @@ def init_db() -> None:
             c.execute("ALTER TABLE posts ADD COLUMN comments TEXT NOT NULL DEFAULT '[]'")
         if "image" not in cols:
             c.execute("ALTER TABLE posts ADD COLUMN image TEXT NOT NULL DEFAULT ''")
+        if "images" not in cols:
+            c.execute("ALTER TABLE posts ADD COLUMN images TEXT NOT NULL DEFAULT '[]'")
 
         if c.execute("SELECT COUNT(*) FROM posts").fetchone()[0] == 0:
             t = now_ms()
@@ -128,12 +131,17 @@ def _post_view(row: sqlite3.Row) -> dict:
     helpful = json.loads(row["helpful"] or "[]")
     comments = json.loads(row["comments"] or "[]") if "comments" in row.keys() else []
     image = row["image"] if "image" in row.keys() else ""
+    images = json.loads(row["images"] or "[]") if "images" in row.keys() else []
+    if not images and image:
+        images = [image]
     return {
         "id": row["id"], "text": row["text"], "type": row["type"], "crop": row["crop"],
         "prov": row["prov"], "mun": row["mun"],
         "author": "You" if row["mine"] else row["author_label"],
         "mine": bool(row["mine"]), "verified": bool(row["verified"]), "sample": bool(row["sample"]),
-        "helpful_count": len(helpful), "helped": ME in helpful, "comments": comments, "image": image,
+        "helpful_count": len(helpful), "helped": ME in helpful, "comments": comments,
+        "image": images[0] if images else image,
+        "images": images,
         "created_at": row["created_at"],
     }
 
@@ -144,13 +152,15 @@ def list_posts(limit: int = 150) -> list:
     return [_post_view(r) for r in rows]
 
 
-def add_post(text: str, type_: str, crop: str, farm: Farm, image: str = "") -> dict:
+def add_post(text: str, type_: str, crop: str, farm: Farm, image: str = "", images: list = None) -> dict:
     label = (farm.name.split(" ")[0] if farm.name else "Farmer") + " · " + farm.mun
+    img_list = images[:5] if images else ([image] if image else [])
+    main_img = img_list[0] if img_list else image
     with connect() as c:
         cur = c.execute(
-            "INSERT INTO posts (text, type, crop, prov, mun, author_label, mine, helpful, comments, image, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, 1, '[]', '[]', ?, ?)",
-            (text, type_, crop, farm.prov, farm.mun, label, image, now_ms()),
+            "INSERT INTO posts (text, type, crop, prov, mun, author_label, mine, helpful, comments, image, images, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, 1, '[]', '[]', ?, ?, ?)",
+            (text, type_, crop, farm.prov, farm.mun, label, main_img, json.dumps(img_list), now_ms()),
         )
         row = c.execute("SELECT * FROM posts WHERE id = ?", (cur.lastrowid,)).fetchone()
     return _post_view(row)
