@@ -1,0 +1,8 @@
+{
+  "name": "deepseek-chatbot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix frontend run dev -- --host 127.0.0.1"
+  }
+}
