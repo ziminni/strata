@@ -22,6 +22,8 @@ export function AppProvider({ children }) {
   const [bootError, setBootError] = useState(null)
   const [farmVersion, setFarmVersion] = useState(0)
   const [postsVersion, setPostsVersion] = useState(0)
+  const [plotsVersion, setPlotsVersion] = useState(0) // bump when fields change so the dashboard tip refreshes
+  const bumpPlots = useCallback(() => setPlotsVersion((v) => v + 1), [])
 
   const [mode, setModeState] = useState(() => (lsGet('strata_mode') === 'detailed' ? 'detailed' : 'simple'))
   const [page, setPage] = useState(pageFromHash)
@@ -151,7 +153,7 @@ export function AppProvider({ children }) {
 
   const value = {
     meta, crops, farm, logs, season, sensor, todayState, riceNow, bootError, boot,
-    farmVersion, postsVersion,
+    farmVersion, postsVersion, plotsVersion, bumpPlots,
     mode, setMode, page, go, lang, setLang,
     farmSheetOpen, setFarmSheetOpen, drawerOpen, setDrawerOpen, logout, logRequest, setLogRequest, openLog,
     toastMsg, toast, saveFarm, addLog,

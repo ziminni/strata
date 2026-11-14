@@ -37,7 +37,7 @@ function Eye({ x, mood }) {
   )
 }
 
-export default function Tata({ mood = 'happy', size = 120, className = '', title }) {
+export default function Tata({ mood = 'happy', size = 120, className = '', title, animated = false }) {
   const c = MOODS[mood] || MOODS.happy
   const thirsty = mood === 'thirsty'
   const label = title || { happy: 'Tata waving hello', rain: 'Tata expecting rain', thirsty: 'Tata, thirsty in the heat', harvest: 'Tata celebrating the harvest' }[mood]
@@ -70,7 +70,10 @@ export default function Tata({ mood = 'happy', size = 120, className = '', title
       )}
 
       {/* ground shadow */}
-      <ellipse cx="100" cy="211" rx="62" ry="7" fill={INK} opacity="0.14" />
+      <ellipse cx="100" cy="211" rx="62" ry="7" fill={INK} opacity="0.14" className={animated ? 'tata-shadow' : undefined} />
+
+      {/* everything above the shadow bobs when animated */}
+      <g className={animated ? 'tata-bob' : undefined}>
 
       {/* arms (behind the body) */}
       {mood === 'harvest' ? (
@@ -81,7 +84,7 @@ export default function Tata({ mood = 'happy', size = 120, className = '', title
       ) : mood === 'happy' ? (
         <>
           <Arm d="M48 128 Q30 140 26 160" /><Hand x={26} y={162} />
-          <Arm d="M152 124 Q172 112 176 90" /><Hand x={176} y={88} />
+          <g className={animated ? 'tata-wave' : undefined}><Arm d="M152 124 Q172 112 176 90" /><Hand x={176} y={88} /></g>
         </>
       ) : (
         <>
@@ -170,6 +173,7 @@ export default function Tata({ mood = 'happy', size = 120, className = '', title
           <path d="M94 127Q100 133 106 127Q100 124 94 127z" fill="#e8857a" />
         </g>
       )}
+      </g>
     </svg>
   )
 }

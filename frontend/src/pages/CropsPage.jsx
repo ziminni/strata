@@ -88,7 +88,7 @@ function FieldCard({ p, crops, moist, onRemove }) {
 
 /** Farm tab: the farmer's fields and crops, each analysed with weather, climate, soil and the sensor. */
 export default function CropsPage() {
-  const { crops, sensor, toast } = useApp()
+  const { crops, sensor, toast, bumpPlots } = useApp()
   const [plots, setPlots] = useState(null)
   const [adding, setAdding] = useState(false)
 
@@ -100,6 +100,7 @@ export default function CropsPage() {
     try {
       await api.del(`/plots/${id}`)
       setPlots((xs) => xs.filter((x) => x.id !== id))
+      bumpPlots()
       toast('Field removed')
     } catch (e) {
       toast(e.message)
@@ -143,6 +144,7 @@ export default function CropsPage() {
         fieldCount={plots?.length || 0}
         onAdded={(p) => {
           setPlots((xs) => [p, ...(xs || [])])
+          bumpPlots()
           toast(`${crops[p.crop].fil} added to your farm`)
         }}
       />
