@@ -5,6 +5,16 @@ import { MicButton } from '../components/Speech'
 import { Pill } from '../components/ui'
 import { useApp } from '../context/AppContext'
 import { ago } from '../lib/format'
+import { VALENCIA_PLACES } from '../mock/data'
+
+const VALENCIA_BARANGAYS = VALENCIA_PLACES || [
+  'Bagontaas', 'Banlag', 'Barobo', 'Batangan', 'Catumbalon', 'Colonia',
+  'Concepcion', 'Dagat-Kidavao', 'Guinoyuran', 'Kahaponan', 'Laligan',
+  'Lilingayon', 'Lourdes', 'Lumbayao', 'Lumbo', 'Lurogan', 'Maapag',
+  'Mabuhay', 'Mailag', 'Mt. Nebo', 'Nabago', 'Pinatilan', 'Poblacion',
+  'San Carlos', 'San Isidro', 'Sinabuagan', 'Sinayawan', 'Sugod',
+  'Tongantongan', 'Tugaya', 'Vintar',
+]
 
 const AVATAR = ['#2f6b3a', '#2c6e9b', '#8a5a3b', '#7a4a8f', '#c06a1a', '#3f7a74']
 const TYPE_CLS = {
@@ -434,9 +444,11 @@ function FacebookPost({ p, crops, farm, onLike, onComment, toast }) {
 /** Dedicated Full Page for Creating a Post with Back Confirmation & Multi-image upload (up to 5) */
 function CreatePostPage({ onBack, onCreated, farm, meta, crops, toast, simple }) {
   const defaultCrop = meta?.farm_crops?.[0] || 'rice'
+  const defaultPlace = farm?.mun && VALENCIA_BARANGAYS.includes(farm.mun) ? farm.mun : 'Bagontaas'
   const [text, setText] = useState('')
   const [type, setType] = useState('update')
   const [crop, setCrop] = useState(defaultCrop)
+  const [place, setPlace] = useState(defaultPlace)
   const [images, setImages] = useState([])
   const [posting, setPosting] = useState(false)
   const [showConfirmDiscard, setShowConfirmDiscard] = useState(false)
@@ -499,6 +511,9 @@ function CreatePostPage({ onBack, onCreated, farm, meta, crops, toast, simple })
         text: t,
         type,
         crop: crop || defaultCrop,
+        place,
+        mun: place,
+        prov: 'Valencia City',
         image: images[0] || '',
         images,
       })
@@ -553,7 +568,7 @@ function CreatePostPage({ onBack, onCreated, farm, meta, crops, toast, simple })
             <div className="font-bold text-[15px] text-ink">{farm.name || 'Farmer'}</div>
             <div className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full bg-surface2 text-[11px] font-medium text-muted border border-line/60">
               <Icon name="globe" className="size-3" />
-              <span>Public · {farm.mun}, {farm.prov}</span>
+              <span>Public · {place || 'Bagontaas'}, Valencia City</span>
             </div>
           </div>
         </div>
@@ -577,6 +592,29 @@ function CreatePostPage({ onBack, onCreated, farm, meta, crops, toast, simple })
               onChange={setText}
               onDenied={() => toast('Microphone is off. Please type instead.')}
             />
+          </div>
+        </div>
+
+        {/* Place / Barangay Field in Valencia City */}
+        <div className="w-full text-left">
+          <label className="field-label !m-0 !mb-1.5 font-bold text-ink-soft text-left flex items-center gap-1">
+            <Icon name="pin" className="size-3.5 text-leaf" />
+            <span>Barangay / Place (Valencia City)</span>
+          </label>
+          <div className="w-full relative">
+            <select
+              className="field w-full text-left font-medium"
+              style={{ textAlign: 'left', textAlignLast: 'left' }}
+              value={place}
+              onChange={(e) => setPlace(e.target.value)}
+              aria-label="Barangay in Valencia City"
+            >
+              {VALENCIA_BARANGAYS.map((p) => (
+                <option key={p} value={p}>
+                  {p}, Valencia City
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -798,7 +836,13 @@ export default function CommunityPage() {
   // Filter posts based on Place and Search query
   const q = searchQuery.toLowerCase().trim()
   const filtered = currentBase.filter((p) => {
-    const matchPlace = placeFilter === 'all' || p.prov === placeFilter
+    const matchPlace =
+      placeFilter === 'all' ||
+      p.mun === placeFilter ||
+      p.prov === placeFilter ||
+      (p.place && p.place === placeFilter) ||
+      (p.location && p.location.toLowerCase().includes(placeFilter.toLowerCase())) ||
+      (p.author_label && p.author_label.toLowerCase().includes(placeFilter.toLowerCase()))
     if (!matchPlace) return false
     if (!q) return true
     const authorMatch = (p.author || '').toLowerCase().includes(q)
@@ -861,7 +905,7 @@ export default function CommunityPage() {
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h1 className="text-[24px] font-extrabold tracking-tight text-ink">Community</h1>
-          <p className="text-[12.5px] text-muted">Farmers & Technical Advisers in Central Luzon</p>
+          <p className="text-[12.5px] text-muted">Farmers & Technical Advisers in Valencia City, Bukidnon</p>
         </div>
         {posts && (
           <span className="rounded-full bg-leaf-soft px-2.5 py-1 text-[11.5px] font-bold text-leaf-ink">
@@ -975,18 +1019,18 @@ export default function CommunityPage() {
             <span>Place:</span>
           </label>
           <select
-            className="field !py-1.5 !text-[13px] !rounded-xl flex-1 font-medium"
+            className="field !py-1.5 !text-[13px] !rounded-xl flex-1 font-medium text-left"
+            style={{ textAlign: 'left', textAlignLast: 'left' }}
             value={placeFilter}
             onChange={handlePlaceChange}
-            aria-label="Filter by place"
+            aria-label="Filter by place in Valencia City"
           >
-            <option value="all">All Places (Central Luzon)</option>
-            {meta?.provinces &&
-              Object.keys(meta.provinces).map((prov) => (
-                <option key={prov} value={prov}>
-                  {prov}
-                </option>
-              ))}
+            <option value="all">All Places (Valencia City, Bukidnon)</option>
+            {VALENCIA_BARANGAYS.map((place) => (
+              <option key={place} value={place}>
+                {place}
+              </option>
+            ))}
           </select>
           {(placeFilter !== 'all' || searchQuery) && (
             <button
