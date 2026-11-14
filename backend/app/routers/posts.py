@@ -13,7 +13,16 @@ def list_posts():
 
 @router.post("", status_code=201)
 def create_post(post: PostIn):
-    return db.add_post(post.text, post.type, post.crop, db.get_farm(), post.image, post.images)
+    return db.add_post(
+        post.text,
+        post.type,
+        post.crop,
+        db.get_farm(),
+        post.image,
+        post.images,
+        mun=post.mun or post.place,
+        prov=post.prov,
+    )
 
 
 @router.post("/{post_id}/helpful")

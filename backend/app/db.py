@@ -152,15 +152,17 @@ def list_posts(limit: int = 150) -> list:
     return [_post_view(r) for r in rows]
 
 
-def add_post(text: str, type_: str, crop: str, farm: Farm, image: str = "", images: list = None) -> dict:
-    label = (farm.name.split(" ")[0] if farm.name else "Farmer") + " · " + farm.mun
+def add_post(text: str, type_: str, crop: str, farm: Farm, image: str = "", images: list = None, mun: str = "", prov: str = "") -> dict:
+    post_mun = mun or farm.mun
+    post_prov = prov or farm.prov
+    label = (farm.name.split(" ")[0] if farm.name else "Farmer") + " · " + post_mun
     img_list = images[:5] if images else ([image] if image else [])
     main_img = img_list[0] if img_list else image
     with connect() as c:
         cur = c.execute(
             "INSERT INTO posts (text, type, crop, prov, mun, author_label, mine, helpful, comments, image, images, created_at)"
             " VALUES (?, ?, ?, ?, ?, ?, 1, '[]', '[]', ?, ?, ?)",
-            (text, type_, crop, farm.prov, farm.mun, label, main_img, json.dumps(img_list), now_ms()),
+            (text, type_, crop, post_prov, post_mun, label, main_img, json.dumps(img_list), now_ms()),
         )
         row = c.execute("SELECT * FROM posts WHERE id = ?", (cur.lastrowid,)).fetchone()
     return _post_view(row)

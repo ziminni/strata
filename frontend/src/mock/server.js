@@ -4,7 +4,7 @@ import { CROPS, DEFAULT_FARM, FARM_CROPS, LOGTYPES, MON, PLANS, POST_TYPES, PROV
 import { activePlan, ADVICE_CROPS, buildSegs, climSummary, cropAdvice, evaluatePlan, rankedView, segView } from './engine'
 
 const ME = 'me'
-const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v7', plots: 'strata_plots' }
+const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v8', plots: 'strata_plots' }
 
 function load(key, fallback) {
   try {
@@ -58,7 +58,7 @@ function seedPosts() {
       text: sp.text,
       type: sp.type,
       crop: sp.crop || '',
-      prov: sp.prov || 'Nueva Ecija',
+      prov: sp.prov || 'Valencia City',
       mun: sp.mun || '',
       author_label: sp.author,
       mine: false,
@@ -143,18 +143,20 @@ function postView(p) {
   }
 }
 
-function addPost(text, type, crop, image = '', images = []) {
+function addPost(text, type, crop, image = '', images = [], place = '', mun = '', prov = '') {
   const farm = getFarm()
   const posts = getPosts()
   const imgList = Array.isArray(images) && images.length ? images.slice(0, 5) : (image ? [image] : [])
+  const m = mun || place || farm.mun || 'Bagontaas'
+  const pr = prov || farm.prov || 'Valencia City'
   const p = {
     id: nextId(posts),
     text,
     type,
     crop: crop || '',
-    prov: farm.prov,
-    mun: farm.mun,
-    author_label: (farm.name ? farm.name.split(' ')[0] : 'Farmer') + ' · ' + farm.mun,
+    prov: pr,
+    mun: m,
+    author_label: (farm.name ? farm.name.split(' ')[0] : 'Farmer') + ' · ' + m,
     mine: true,
     verified: false,
     sample: false,
@@ -252,7 +254,16 @@ export async function handle(method, path, body) {
       ? body.images.filter((x) => typeof x === 'string' && x).slice(0, 5)
       : []
     const image = typeof body?.image === 'string' && body.image ? body.image : (images[0] || '')
-    return addPost(text.slice(0, 2000), body.type, CROPS[body.crop] ? body.crop : '', image, images)
+    return addPost(
+      text.slice(0, 2000),
+      body.type,
+      CROPS[body.crop] ? body.crop : '',
+      image,
+      images,
+      body.place || '',
+      body.mun || '',
+      body.prov || ''
+    )
   }
   const helpful = p.match(/^\/posts\/(\d+)\/helpful$/)
   if (method === 'POST' && helpful) {
