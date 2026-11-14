@@ -79,7 +79,7 @@ export default function CommunityPage() {
     (p) => (filters.prov === 'all' || p.prov === filters.prov) && (filters.type === 'all' || p.type === filters.type) && (filters.crop === 'all' || p.crop === filters.crop),
   )
   const warnings = (posts || []).filter((p) => p.type === 'warning' && p.prov === farm.prov && Date.now() - p.created_at < 7 * 864e5)
-  const cropOptions = Object.entries(crops).map(([k, c]) => <option key={k} value={k}>{c.fil} ({c.en})</option>)
+  const cropOptions = meta.farm_crops.map((k) => <option key={k} value={k}>{crops[k].fil} ({crops[k].en})</option>)
   const setFilter = (k) => (e) => setFilters((f) => ({ ...f, [k]: e.target.value }))
 
   return (
@@ -89,11 +89,11 @@ export default function CommunityPage() {
           <textarea
             className="field"
             aria-label="New post"
-            placeholder={simple ? 'Ano ang balita sa bukid mo?' : 'Share an update, ask a question, or warn your neighbors…'}
+            placeholder={simple ? 'What’s new on your farm?' : 'Share an update, ask a question, or warn your neighbors…'}
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          <MicButton value={text} onChange={setText} onDenied={() => toast('Naka-off ang mikropono. Mag-type na lang.')} />
+          <MicButton value={text} onChange={setText} onDenied={() => toast('Microphone is off. Please type instead.')} />
         </div>
         <div className="mt-2 grid grid-cols-2 gap-1.5">
           <select className="field" aria-label="Post type" value={type} onChange={(e) => setType(e.target.value)}>
@@ -103,7 +103,7 @@ export default function CommunityPage() {
             <option value="">Crop (optional)</option>{cropOptions}
           </select>
         </div>
-        <button type="button" className="btn btn-pri mt-2 w-full" onClick={submit}>{simple ? 'I-post' : 'Post'}</button>
+        <button type="button" className="btn btn-pri mt-2 w-full" onClick={submit}>Post</button>
         {loadError && <p className="note mt-1.5">{loadError}</p>}
       </div>
 

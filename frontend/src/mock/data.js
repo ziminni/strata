@@ -44,8 +44,12 @@ export const CROPS = {
   kamote: { fil: 'Kamote', en: 'Sweet potato', days: 120, water: 350, value: 2, capital: 1, labor: 2, legume: 0, heat: 4, drought: 4, upland: 1, fam: 'morning glory', color: '#b5543e', ph: [5, 7] },
   pakwan: { fil: 'Pakwan', en: 'Watermelon', days: 75, water: 350, value: 4, capital: 3, labor: 3, legume: 0, heat: 4, drought: 3, upland: 1, fam: 'cucurbit', color: '#2f9a6a', ph: [5.5, 7] },
   sesbania: { fil: 'Sesbania', en: 'Green manure', days: 45, water: 150, value: 0, capital: 1, labor: 1, legume: 1, heat: 5, drought: 3, upland: 0, fam: 'legume', color: '#8fbf5a', ph: [4.5, 8], cover: 1 },
+  tabako: { fil: 'Tabako', en: 'Tobacco', days: 120, water: 450, value: 5, capital: 4, labor: 5, legume: 0, heat: 4, drought: 3, upland: 1, fam: 'nightshade', color: '#b8873a', ph: [5.5, 6.8], season: 'dry' },
   fallow: { fil: 'Fallow', en: 'Bare field', days: 0 },
 }
+
+// The crops our farmers grow. Crop pickers (add crop, logs, posts) only offer these.
+export const FARM_CROPS = ['rice', 'mais', 'tabako']
 
 export const WS = { crop: 'rice', m: 5, d: 15 } // wet-season rice planted ~Jun 15
 

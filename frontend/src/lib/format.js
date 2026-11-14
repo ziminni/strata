@@ -1,6 +1,8 @@
 export const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 export const BUWAN = ['Enero', 'Pebrero', 'Marso', 'Abril', 'Mayo', 'Hunyo', 'Hulyo', 'Agosto', 'Setyembre', 'Oktubre', 'Nobyembre', 'Disyembre']
-export const ARAW = ['Linggo', 'Lunes', 'Martes', 'Miyerkules', 'Huwebes', 'Biyernes', 'Sabado']
+export const ARAW = ['Linggo', 'Lunes', 'Martes', 'Miyerkules', 'Huwebes', 'Biyernes', 'Sabado'] // Filipino; kept for the future language picker
+export const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+export const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 export const DAY_MS = 864e5
 export function addDays(dt, n) {
@@ -39,7 +41,7 @@ export function shortName(name) {
 
 export function greeting(name) {
   const h = new Date().getHours()
-  const g = h < 12 ? 'Magandang umaga' : h < 18 ? 'Magandang hapon' : 'Magandang gabi'
+  const g = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
   return g + (name ? ', ' + shortName(name) : '') + '!'
 }
 

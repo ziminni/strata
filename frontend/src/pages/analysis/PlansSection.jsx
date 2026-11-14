@@ -6,7 +6,7 @@ import { useApi } from '../../hooks/useApi'
 import { SCENARIO_OPTIONS } from '../../lib/labels'
 
 export default function PlansSection() {
-  const { farm, crops, saveFarm, toast, setLang, ask, farmVersion } = useApp()
+  const { farm, crops, saveFarm, toast, ask, farmVersion } = useApp()
   const [scen, setScen] = useState('ssp245')
   const [showAll, setShowAll] = useState(false)
   const { data, error } = useApi(`/plans?scenario=${scen}`, [farmVersion])
@@ -20,8 +20,7 @@ export default function PlansSection() {
     }
   }
   const explain = (p) => {
-    setLang('Filipino')
-    ask(`Ipaliwanag ang plan na "${p.name}" para sa aking bukid: bakit ito maganda, kailan magtatanim, magkano ang kailangan, at ano ang mga panganib.`, { lang: 'Filipino' })
+    ask(`Explain the "${p.name}" plan for my farm in simple words: why it's good, when to plant, what it costs, and the main risks.`)
   }
 
   const list = data ? (showAll ? data.plans : data.plans.slice(0, 3)) : []

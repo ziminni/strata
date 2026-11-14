@@ -95,7 +95,7 @@ export function PlanCard({ r, cur, rank, adopted, crops, onAdopt, onExplain }) {
       <Reasons items={r.reasons} />
       <div className="mt-2.5 flex flex-wrap gap-2">
         <button type="button" className={`btn btn-sm ${adopted ? '' : 'btn-pri'}`} onClick={onAdopt}>{adopted ? 'Using this plan' : 'Use this plan'}</button>
-        <button type="button" className="btn btn-sm" onClick={onExplain}>Explain in Filipino</button>
+        <button type="button" className="btn btn-sm" onClick={onExplain}>Explain simply</button>
       </div>
     </div>
   )
