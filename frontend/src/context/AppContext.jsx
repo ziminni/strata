@@ -150,6 +150,10 @@ export function AppProvider({ children }) {
     }
   }
   const clearChat = () => setMessages([])
+  /** Swap in a saved conversation (chat history on the chat page). */
+  const loadChat = (msgs) => {
+    if (!busyRef.current) setMessages(msgs)
+  }
 
   const value = {
     meta, crops, farm, logs, season, sensor, todayState, riceNow, bootError, boot,
@@ -157,7 +161,7 @@ export function AppProvider({ children }) {
     mode, setMode, page, go, lang, setLang,
     farmSheetOpen, setFarmSheetOpen, drawerOpen, setDrawerOpen, logout, logRequest, setLogRequest, openLog,
     toastMsg, toast, saveFarm, addLog,
-    messages, busy, ask, clearChat,
+    messages, busy, ask, clearChat, loadChat,
   }
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
 }
