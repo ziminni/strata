@@ -3,7 +3,8 @@ import { Icon } from '../components/Icon'
 import { SpeakButton } from '../components/Speech'
 import Tata from '../components/Tata'
 import { useApp } from '../context/AppContext'
-import { BUWAN, lsGet, lsSet } from '../lib/format'
+import { fmtD, lsGet, lsSet } from '../lib/format'
+import { locale, localized, tr } from '../lib/i18n'
 
 /* ---------- chat history (saved in this browser) ---------- */
 const CHATS_KEY = 'strata_chats'
@@ -13,18 +14,18 @@ const saveable = (msgs) => msgs.filter((m) => !m.pending && !m.error)
 
 function chatTitle(msgs) {
   const first = msgs.find((m) => m.role === 'user')
-  const t = first ? first.content.trim().replace(/\s+/g, ' ') : 'Usapan'
+  const t = first ? first.content.trim().replace(/\s+/g, ' ') : tr('Conversation')
   return t.length > 60 ? t.slice(0, 57) + '…' : t
 }
 
 function whenLabel(ts) {
   const d = new Date(ts)
   const now = new Date()
-  const time = d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })
+  const time = d.toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' })
   const days = Math.round((new Date(now.toDateString()) - new Date(d.toDateString())) / 864e5)
-  if (days === 0) return `Ngayon, ${time}`
-  if (days === 1) return `Kahapon, ${time}`
-  return `${BUWAN[d.getMonth()]} ${d.getDate()}${d.getFullYear() !== now.getFullYear() ? `, ${d.getFullYear()}` : ''}`
+  if (days === 0) return tr('Today, {time}', { time })
+  if (days === 1) return tr('Yesterday, {time}', { time })
+  return `${fmtD(d)}${d.getFullYear() !== now.getFullYear() ? `, ${d.getFullYear()}` : ''}`
 }
 
 /** Keeps every conversation in localStorage, restores the open one after a reload, and lets you reopen or delete old ones. */
@@ -79,7 +80,7 @@ function useChatHistory(messages, loadChat, clearChat) {
 
 function HistoryList({ chats, currentId, busy, onOpen, onRemove }) {
   if (!chats.length)
-    return <p className="px-4 py-12 text-center text-[14.5px] text-muted simple:text-[16px]">Wala pang naka-save na usapan. Magtanong kay Tata para magsimula.</p>
+    return <p className="px-4 py-12 text-center text-[14.5px] text-muted simple:text-[16px]">{tr('No saved conversations yet. Ask Tata to get started.')}</p>
   return (
     <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
       {chats.map((c) => (
@@ -87,13 +88,13 @@ function HistoryList({ chats, currentId, busy, onOpen, onRemove }) {
           <button type="button" disabled={busy} onClick={() => onOpen(c)} className="min-w-0 flex-1 cursor-pointer border-0 bg-transparent px-4 py-3 text-left">
             <div className="truncate text-[14.5px] font-semibold text-ink simple:text-[16px]">{c.title}</div>
             <div className="mt-0.5 text-[12px] text-muted simple:text-[13.5px]">
-              {whenLabel(c.updated)} · {c.messages.filter((m) => m.role !== 'tool').length} mensahe
+              {whenLabel(c.updated)} · {tr('{n} messages', { n: c.messages.filter((m) => m.role !== 'tool').length })}
             </div>
           </button>
           <button
             type="button"
-            aria-label={`Burahin ang usapan: ${c.title}`}
-            onClick={() => window.confirm('Burahin ang usapang ito?') && onRemove(c.id)}
+            aria-label={tr('Delete conversation: {title}', { title: c.title })}
+            onClick={() => window.confirm(tr('Delete this conversation?')) && onRemove(c.id)}
             className="cursor-pointer rounded-r-2xl border-0 bg-transparent px-3.5 text-muted hover:text-danger [&_.ic]:size-4"
           >
             <Icon name="close" />
@@ -142,7 +143,7 @@ function BubbleTata({ m, latest }) {
   return (
     <span key={m.pending ? 'wait' : 'done'} className="tata-anim tata-pop mb-0.5 flex-none">
       <span className={`tata-anim ${motion}`}>
-        <Tata mood={m.error ? 'rain' : 'happy'} face={face} wave={latest && !m.pending ? 'once' : undefined} blink size={38} className="block" title="Tata" />
+        <Tata mood={m.error ? 'rain' : 'happy'} face={face} wave={latest && !m.pending ? 'once' : undefined} blink size={38} className="block" title={tr('Tata')} />
       </span>
     </span>
   )
@@ -165,7 +166,7 @@ function HeroTata({ typing }) {
   }
   const face = reaction || (typing ? 'thinking' : 'happy')
   return (
-    <button type="button" aria-label="Batiin si Tata" onClick={tap} className="tata-anim tata-pop cursor-pointer border-0 bg-transparent p-0">
+    <button type="button" aria-label={tr('Say hi to Tata')} onClick={tap} className="tata-anim tata-pop cursor-pointer border-0 bg-transparent p-0">
       <span className="tata-anim tata-float">
         <span key={hops} className={`tata-anim ${hops ? 'tata-jump' : ''}`}>
           <Tata mood="happy" face={face} wave={hops ? 'once' : 'idle'} blink size={112} className="block" />
@@ -175,10 +176,10 @@ function HeroTata({ typing }) {
   )
 }
 
-const STARTERS = {
-  detailed: ['Ano ang dapat kong itanim pagkatapos ng anihan ngayong taon?', 'Paano kung walang patubig sa tag-araw?', 'Ipaliwanag ang pinakamagandang plano ko sa simpleng salita', 'Ano ang sinasabi ng sensor ko ngayon?', 'Paano maaapektuhan ng klima sa 2050 ang aking bukid?'],
-  simple: ['Ano ang itatanim ko pagkatapos ng ani?', 'Kailangan ko bang magpatubig ngayon?', 'Paano makakatipid sa tubig?', 'Paano kung walang patubig sa tag-araw?'],
-}
+const STARTERS = localized({
+  detailed: ['What should I plant after this year’s harvest?', 'What if there’s no irrigation in the dry season?', 'Explain my best plan in simple words', 'What does my sensor say right now?', 'How will the 2050 climate affect my farm?'],
+  simple: ['What should I plant after harvest?', 'Do I need to irrigate now?', 'How can I save water?', 'What if there’s no irrigation in the dry season?'],
+})
 
 function Bubble({ m, latest }) {
   // "Sky" style: conversation sits on a pale-sky panel. You = solid Strata green bubble; Tata = white card
@@ -191,10 +192,10 @@ function Bubble({ m, latest }) {
     <div className="flex items-end gap-2">
       <BubbleTata m={m} latest={latest} />
       <div className="max-w-[80%] simple:max-w-[84%]">
-        <div className="mb-1 ml-1 text-[11px] font-bold tracking-wide text-[#5a7896] uppercase">Tata</div>
+        <div className="mb-1 ml-1 text-[11px] font-bold tracking-wide text-[#5a7896] uppercase">{tr('Tata')}</div>
         <div className={`rounded-[24px] rounded-bl-[6px] px-4 py-3 text-[14.5px] leading-[1.5] whitespace-pre-wrap text-ink shadow-[0_2px_10px_rgba(30,70,110,.10)] simple:text-[17px] ${m.error ? 'bg-danger-soft ring-1 ring-[#f5cfc5]' : 'bg-white'}`}>
-          {m.pending ? <span className="text-[#2f8be0]" role="status" aria-label="Nag-iisip si Tata…"><span className="tata-dot" /><span className="tata-dot" /><span className="tata-dot" /></span> : m.content}
-          {!m.pending && !m.error && <div className="mt-2 border-t border-[#eef3f8] pt-2"><SpeakButton text={m.content} label="Pakinggan" /></div>}
+          {m.pending ? <span className="text-[#2f8be0]" role="status" aria-label={tr('Tata is thinking…')}><span className="tata-dot" /><span className="tata-dot" /><span className="tata-dot" /></span> : m.content}
+          {!m.pending && !m.error && <div className="mt-2 border-t border-[#eef3f8] pt-2"><SpeakButton text={m.content} label={tr('Listen')} /></div>}
         </div>
       </div>
     </div>
@@ -218,16 +219,16 @@ export default function ChatPage() {
     if (!t || busy) return
     setText('')
     setShowHistory(false)
-    ask(t, { lang: 'Filipino' })
+    ask(t)
   }
 
   return (
-    <section className="px-4 pt-1.5 pb-2.5" aria-label="Magtanong kay Tata">
+    <section className="px-4 pt-1.5 pb-2.5" aria-label={tr('Ask Tata')}>
       <style>{TATA_CSS}</style>
       <div className="card mt-2 flex h-[calc(100dvh-196px)] min-h-[420px] flex-col p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <button type="button" className="btn btn-sm" aria-expanded={showHistory} onClick={() => setShowHistory((v) => !v)}>
-            {showHistory ? '← Bumalik sa usapan' : `Kasaysayan (${chats.length})`}
+            {showHistory ? tr('← Back to the conversation') : tr('History ({n})', { n: chats.length })}
           </button>
           {(messages.length > 0 || showHistory) && (
             <button
@@ -239,7 +240,7 @@ export default function ChatPage() {
                 setShowHistory(false)
               }}
             >
-              + Bagong usapan
+              {tr('+ New conversation')}
             </button>
           )}
         </div>
@@ -262,11 +263,11 @@ export default function ChatPage() {
           ) : (
             <div className="flex flex-col items-center px-3 pt-4 pb-2 text-center">
               <HeroTata typing={text.trim().length > 0} />
-              <h2 className="mt-2 text-[22px] font-extrabold text-paddy">Kumusta, ako si Tata!</h2>
+              <h2 className="mt-2 text-[22px] font-extrabold text-paddy">{tr('Hi, I’m Tata!')}</h2>
               <p className="mt-1 mb-0 max-w-[300px] text-[15px] leading-[1.45] text-ink-soft simple:text-[17px]">
                 {simple
-                  ? 'Alam ko ang iyong bukid, ang datos ng panahon mula sa NASA, at ang iyong field sensor. Pumili ng tanong sa ibaba, o i-type ang sarili mong tanong.'
-                  : `Ang katuwang mo sa bukid mula sa Strata. Alam ko ang profile ng iyong bukid, ang datos ng klima ng NASA para sa ${farm.prov}, ang iyong field sensor at ang iyong mga plano sa pagpapalit-tanim.`}
+                  ? tr('I know your farm, NASA weather data and your field sensor. Pick a question below, or type your own.')
+                  : tr('Your farm helper from Strata. I know your farm profile, NASA climate data for {place}, your field sensor and your crop rotation plans.', { place: farm.prov })}
               </p>
             </div>
           )}
@@ -274,7 +275,7 @@ export default function ChatPage() {
         {messages.length === 0 && !showHistory && (
           <div className="mt-1 flex flex-wrap gap-2 border-t border-line pt-3">
             {STARTERS[mode].map((s) => (
-              <button key={s} type="button" disabled={busy} onClick={() => ask(s, { lang: 'Filipino' })} className="rounded-xl bg-leaf-soft px-[11px] py-[5px] text-[12.5px] font-semibold text-leaf-ink simple:px-3.5 simple:py-2.5 simple:text-[15px]">
+              <button key={s} type="button" disabled={busy} onClick={() => ask(s)} className="rounded-xl bg-leaf-soft px-[11px] py-[5px] text-[12.5px] font-semibold text-leaf-ink simple:px-3.5 simple:py-2.5 simple:text-[15px]">
                 {s}
               </button>
             ))}
@@ -283,8 +284,8 @@ export default function ChatPage() {
         <div className={`flex gap-2 ${messages.length || showHistory ? 'border-t border-line pt-3' : 'mt-2'}`}>
           <textarea
             className="field h-11 min-h-11! resize-none"
-            aria-label="Mensahe"
-            placeholder={simple ? 'I-type ang iyong tanong…' : 'Magtanong tungkol sa iyong bukid…'}
+            aria-label={tr('Message')}
+            placeholder={simple ? tr('Type your question…') : tr('Ask about your farm…')}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -294,7 +295,7 @@ export default function ChatPage() {
               }
             }}
           />
-          <button type="button" className="btn btn-pri" onClick={send} disabled={busy}>Ipadala</button>
+          <button type="button" className="btn btn-pri" onClick={send} disabled={busy}>{tr('Send')}</button>
         </div>
       </div>
     </section>
