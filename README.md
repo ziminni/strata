@@ -22,6 +22,13 @@ cd backend && source .venv/bin/activate && fastapi dev main.py   # :8000, set GE
 cd frontend && VITE_API_MODE=remote npm run dev                    # Vite proxies /api → :8000
 ```
 
+## STRATA crop model backend
+
+Planting recommendations come from the STRATA Decision Support System, a separate FastAPI
+service: [Kurty-byte/NSAC---STRATA-Backend](https://github.com/Kurty-byte/NSAC---STRATA-Backend).
+The frontend calls its `POST /api/v1/prescribe` endpoint through the Vite proxy at `/model`
+(`MODEL_BASE_URL` in `frontend/.env`).
+
 ## Architecture
 
 ```
