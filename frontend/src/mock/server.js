@@ -2,6 +2,7 @@
 // backend/app/routers/*, with data kept in localStorage on this device.
 import { CROPS, DEFAULT_FARM, FARM_CROPS, LOGTYPES, MON, PLANS, POST_TYPES, PROV, SAMPLE_POSTS, SCEN } from './data'
 import { activePlan, ADVICE_CROPS, buildSegs, climSummary, cropAdvice, evaluatePlan, rankedView, segView } from './engine'
+import { tr } from '../lib/i18n'
 import { LIKELIHOOD_TIER, LIKELIHOOD_VERDICT, modelReasons } from '../lib/model'
 
 const ME = 'me'
@@ -38,7 +39,7 @@ function parseDate(s) {
 const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 function httpError(status, detail) {
-  const e = new Error(detail)
+  const e = new Error(tr(detail)) // messages reach the screen, so they follow the app language
   e.status = status
   return e
 }

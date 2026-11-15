@@ -2,6 +2,7 @@
 // until then — or offline, or beyond the 16-day forecast window — it falls back to a deterministic
 // forecast generated from the province's NASA POWER climatology.
 import { addDays, ymd } from './format'
+import { localized } from './i18n'
 
 /* ---------------- live forecast (Open-Meteo) ---------------- */
 
@@ -76,8 +77,8 @@ export function sunTimes(lat, lon, d) {
   return { rise: (noon - 4 * ha) / 60, set: (noon + 4 * ha) / 60 }
 }
 
-const TXT = { storm: 'Heavy rain', rain: 'Rain', cloud: 'Cloudy', partly: 'Partly cloudy', sun: 'Sunny' }
-export const NOW_TXT = { sun: 'Sunny', moon: 'Clear', cmoon: 'Partly cloudy', partly: 'Partly cloudy', cloud: 'Cloudy', rain: 'Raining', storm: 'Heavy rain' }
+const TXT = { storm: 'Heavy rain', rain: 'Rain', cloud: 'Cloudy', partly: 'Partly cloudy', sun: 'Sunny' } // English; shown via tr()
+export const NOW_TXT = localized({ sun: 'Sunny', moon: 'Clear', cmoon: 'Partly cloudy', partly: 'Partly cloudy', cloud: 'Cloudy', rain: 'Raining', storm: 'Heavy rain' })
 export const SKY_CLASS = { sun: 'sky-sun', moon: 'sky-night', cmoon: 'sky-night', partly: 'sky-partly', cloud: 'sky-cloud', rain: 'sky-rain', storm: 'sky-rain' }
 
 /** clim = {T, X, P} monthly series for "now". */

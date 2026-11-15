@@ -14,18 +14,22 @@ const DRAINAGE = { good: 'well', mod: 'moderate', poor: 'poor' }
 export const LIKELIHOOD_TIER = { high: 'recommended', moderate: 'possible', low: 'not_recommended' }
 export const LIKELIHOOD_VERDICT = { high: 'good', moderate: 'okay', low: 'poor' }
 /** Plain-language reason lines ({text, warn}) from the model's score breakdown. */
+// Lines are { key, vars, warn } (+ English `text`) so they render in whatever language is active (see rtext in i18n.js).
+const line = (key, vars, warn) => ({ key, vars, warn, text: key.replace(/\{(\w+)\}/g, (_, k) => vars?.[k] ?? '') })
 export function modelReasons(m) {
   const out = []
-  const where = m.station ? ` around ${m.station}` : ''
-  if (m.window_temp_score != null)
-    out.push(m.window_temp_score >= 80
-      ? { text: `Temperatures in this window suit the crop well (${Math.round(m.window_temp_score)}/100)${where}.`, warn: false }
-      : { text: `Temperatures in this window are not ideal (${Math.round(m.window_temp_score)}/100)${where}.`, warn: true })
-  if (m.dry_spell_days != null && m.dry_spell_days >= 10) out.push({ text: `Expect dry spells of about ${Math.round(m.dry_spell_days)} days. Plan your water.`, warn: true })
-  if (m.heavy_rain_days != null && m.heavy_rain_days >= 5) out.push({ text: `About ${Math.round(m.heavy_rain_days)} heavy-rain days are usual in this window. Keep drains clear.`, warn: true })
-  if (m.heat_days != null && m.heat_days >= 3) out.push({ text: `About ${Math.round(m.heat_days)} very hot days (over 36°C) are usual in this window.`, warn: true })
-  if (m.ph_score != null && m.ph_score < 60) out.push({ text: `Your soil pH is not ideal for this crop (${Math.round(m.ph_score)}/100).`, warn: true })
-  else if (m.ph_score != null && m.ph_score >= 90) out.push({ text: 'Your soil pH suits this crop.', warn: false })
+  const n = (x) => Math.round(x)
+  if (m.window_temp_score != null) {
+    const good = m.window_temp_score >= 80
+    out.push(m.station
+      ? line(good ? 'Temperatures in this window suit the crop well ({n}/100) around {place}.' : 'Temperatures in this window are not ideal ({n}/100) around {place}.', { n: n(m.window_temp_score), place: m.station }, !good)
+      : line(good ? 'Temperatures in this window suit the crop well ({n}/100).' : 'Temperatures in this window are not ideal ({n}/100).', { n: n(m.window_temp_score) }, !good))
+  }
+  if (m.dry_spell_days != null && m.dry_spell_days >= 10) out.push(line('Expect dry spells of about {n} days. Plan your water.', { n: n(m.dry_spell_days) }, true))
+  if (m.heavy_rain_days != null && m.heavy_rain_days >= 5) out.push(line('About {n} heavy-rain days are usual in this window. Keep drains clear.', { n: n(m.heavy_rain_days) }, true))
+  if (m.heat_days != null && m.heat_days >= 3) out.push(line('About {n} very hot days (over 36°C) are usual in this window.', { n: n(m.heat_days) }, true))
+  if (m.ph_score != null && m.ph_score < 60) out.push(line('Your soil pH is not ideal for this crop ({n}/100).', { n: n(m.ph_score) }, true))
+  else if (m.ph_score != null && m.ph_score >= 90) out.push(line('Your soil pH suits this crop.', null, false))
   return out
 }
 

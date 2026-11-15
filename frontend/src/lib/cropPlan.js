@@ -1,15 +1,16 @@
 // What happens during one crop's season, and what Tata predicts for it.
 // Day numbers are typical for Central Luzon (PhilRice / DA guides); prototype values to refine with agronomists.
 import { addDays, dayDiff, MON, parseYmd } from './format'
+import { localized, tr } from './i18n'
 
-export const STAGES = ['Planting', 'Growing', 'Flowering', 'Ripening', 'Harvest']
+export const STAGES = localized(['Planting', 'Growing', 'Flowering', 'Ripening', 'Harvest'])
 export const stageAt = (day, days) => {
   const f = day / days
   return f < 0.12 ? 0 : f < 0.55 ? 1 : f < 0.75 ? 2 : f < 0.92 ? 3 : 4
 }
 
 /** Key field steps per crop as [day, title, detail]. */
-const STEPS = {
+const STEPS = localized({
   rice: [
     [1, 'Transplant or direct-seed', 'Keep 2–3 cm of water on the field.'],
     [14, '1st fertilizer', 'Apply complete fertilizer (14-14-14) plus urea.'],
@@ -37,11 +38,11 @@ const STEPS = {
     [75, 'Start priming', 'Pick the ripe bottom leaves first, 2–3 leaves per week.'],
     [120, 'Last harvest', 'Final pick of the top leaves, then cure them.'],
   ],
-}
+})
 export const cropSteps = (crop) => STEPS[crop] || []
 
 /** Typical yield per hectare (tons). Tobacco = cured leaf. */
-const YIELD = { rice: [4.2, 'palay'], mais: [5.5, 'shelled corn'], tabako: [2.0, 'cured leaf'] }
+const YIELD = localized({ rice: [4.2, 'palay'], mais: [5.5, 'shelled corn'], tabako: [2.0, 'cured leaf'] })
 
 export function cropStatus(plot, cropInfo, now = new Date()) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -88,18 +89,18 @@ export function predictions(plot, cropInfo, clim, outlook) {
   const yieldRange = [mid * 0.9, mid * 1.1]
 
   // harvest shift
-  let shift = 0, shiftWhy = 'Normal weather expected, so harvest should be on time.'
-  if (dryWater && outlook.rainPct <= -10) { shift = 5; shiftWhy = 'A drier season can slow growth, so harvest may be about 5 days late.' }
-  else if (outlook.dT >= 0.8) { shift = -3; shiftWhy = 'A hotter season speeds up ripening, so harvest may be about 3 days early.' }
+  let shift = 0, shiftWhy = tr('Normal weather expected, so harvest should be on time.')
+  if (dryWater && outlook.rainPct <= -10) { shift = 5; shiftWhy = tr('A drier season can slow growth, so harvest may be about 5 days late.') }
+  else if (outlook.dT >= 0.8) { shift = -3; shiftWhy = tr('A hotter season speeds up ripening, so harvest may be about 3 days early.') }
 
   // risks
   const risks = []
-  if (clim.X[flowerM] >= 34) risks.push({ level: 'high', title: `Heat during flowering (${MON[flowerM]})`, text: `Days reach ${Math.round(clim.X[flowerM])}°. Water in the late afternoon to keep the plants cool.` })
-  if (clim.P[flowerM] < 40 && dryWater) risks.push({ level: 'high', title: `Dry spell at flowering (${MON[flowerM]})`, text: `Only ~${clim.P[flowerM]} mm of rain that month and your water is limited. Plan irrigation for this stage.` })
-  if (clim.P[harvestM] > 280) risks.push({ level: 'mid', title: `Heavy rain at harvest (${MON[harvestM]})`, text: 'Harvest and dry quickly on sunny days to avoid spoilage.' })
-  if ([6, 7, 8, 9].includes(harvestM)) risks.push({ level: 'mid', title: 'Typhoon season at harvest', text: 'Watch PAGASA warnings and harvest early if a storm is coming.' })
-  if (plot.crop === 'mais') risks.push({ level: 'low', title: 'Fall armyworm', text: 'Common in corn around day 20–45. Check the leaf whorls weekly.' })
-  if (plot.crop === 'rice' && [5, 6, 7, 8, 9].includes(at(0.3))) risks.push({ level: 'low', title: 'Stem borer and golden snail', text: 'More common in the wet season. Check the field weekly.' })
-  if (plot.crop === 'tabako') risks.push({ level: 'low', title: 'Rain on curing leaves', text: 'Keep picked leaves under a roof while curing.' })
+  if (clim.X[flowerM] >= 34) risks.push({ level: 'high', title: tr('Heat during flowering ({month})', { month: MON[flowerM] }), text: tr('Days reach {t}°. Water in the late afternoon to keep the plants cool.', { t: Math.round(clim.X[flowerM]) }) })
+  if (clim.P[flowerM] < 40 && dryWater) risks.push({ level: 'high', title: tr('Dry spell at flowering ({month})', { month: MON[flowerM] }), text: tr('Only ~{mm} mm of rain that month and your water is limited. Plan irrigation for this stage.', { mm: clim.P[flowerM] }) })
+  if (clim.P[harvestM] > 280) risks.push({ level: 'mid', title: tr('Heavy rain at harvest ({month})', { month: MON[harvestM] }), text: tr('Harvest and dry quickly on sunny days to avoid spoilage.') })
+  if ([6, 7, 8, 9].includes(harvestM)) risks.push({ level: 'mid', title: tr('Typhoon season at harvest'), text: tr('Watch PAGASA warnings and harvest early if a storm is coming.') })
+  if (plot.crop === 'mais') risks.push({ level: 'low', title: tr('Fall armyworm'), text: tr('Common in corn around day 20–45. Check the leaf whorls weekly.') })
+  if (plot.crop === 'rice' && [5, 6, 7, 8, 9].includes(at(0.3))) risks.push({ level: 'low', title: tr('Stem borer and golden snail'), text: tr('More common in the wet season. Check the field weekly.') })
+  if (plot.crop === 'tabako') risks.push({ level: 'low', title: tr('Rain on curing leaves'), text: tr('Keep picked leaves under a roof while curing.') })
   return { yieldRange, unit, shift, shiftWhy, harvestAdj: addDays(parseYmd(plot.harvest), shift), risks: risks.slice(0, 3), flowerM }
 }

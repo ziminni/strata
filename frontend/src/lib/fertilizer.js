@@ -1,5 +1,6 @@
 // "Runoff lock": don't apply fertilizer right before heavy rain — it washes off the field (wasted money, polluted canals).
 import { addDays, DAYS } from './format'
+import { tr } from './i18n'
 import { wxDay } from './weather'
 
 // Based on the forecast rain AMOUNT (Open-Meteo daily precipitation, mm), not just "a rain icon":
@@ -15,7 +16,7 @@ const wet = (w) => (live(w) ? w.mm >= WET_MM && w.chance >= WET_CHANCE : w.k ===
 
 export const dayName = (d, base) => {
   const n = Math.round((d - base) / 864e5)
-  return n === 0 ? 'today' : n === 1 ? 'tomorrow' : DAYS[d.getDay()]
+  return n === 0 ? tr('today') : n === 1 ? tr('tomorrow') : DAYS[d.getDay()]
 }
 
 /** Look 3 days ahead. Returns {level: 'hold'|'care'|'ok', ...}. */

@@ -1,6 +1,7 @@
 // Climate + rotation scoring, run in the browser. Mirrors backend/app/engine/*.py so
 // responses have the same shape as the FastAPI endpoints.
 import { BASE, CROPS, DS_MONTHS, FARM_CROPS, MON, PLANS, PROV, SCEN, WS } from './data'
+import { tr } from '../lib/i18n'
 
 const IRRIGATION_MM = { canal: 900, limited: 350, rainfed: 0 }
 const REFERENCE_YEAR = 2026 // wet season used when scoring plans
@@ -148,21 +149,24 @@ function reasons(farm, r, cur) {
   const out = []
   const ok = (text) => out.push({ text, warn: false })
   const warn = (text) => out.push({ text, warn: true })
-  if (r.legume) ok(`Adds nitrogen to your soil with ${uniq(r.segs.filter((s) => CROPS[s.crop].legume).map((s) => CROPS[s.crop].fil)).join(' and ')}, so your next palay needs less fertilizer.`)
-  if (r.gm) ok('Sesbania green manure is plowed in before wet-season palay, which feeds the soil and adds organic matter.')
-  ok(`Living roots cover the field ${r.covered} of 12 months${r.bare >= 3 ? ` (bare for about ${r.bare} months)` : ''}.`)
-  if (r.straw === 'incorporate' && cur && farm.straw !== 'incorporate') ok('Plow the rice straw back in instead of burning it: it returns nutrients and organic matter.')
+  // text in the app's current language (Detailed view refetches plans when the language changes)
+  if (r.legume) ok(tr('Adds nitrogen to your soil with {crops}, so your next palay needs less fertilizer.', { crops: uniq(r.segs.filter((s) => CROPS[s.crop].legume).map((s) => tr(CROPS[s.crop].fil))).join(tr(' and ')) }))
+  if (r.gm) ok(tr('Sesbania green manure is plowed in before wet-season palay, which feeds the soil and adds organic matter.'))
+  ok(r.bare >= 3 ? tr('Living roots cover the field {n} of 12 months (bare for about {bare} months).', { n: r.covered, bare: r.bare }) : tr('Living roots cover the field {n} of 12 months.', { n: r.covered }))
+  if (r.straw === 'incorporate' && cur && farm.straw !== 'incorporate') ok(tr('Plow the rice straw back in instead of burning it: it returns nutrients and organic matter.'))
   if (r.irrig > 0) {
-    const cmp = cur ? (cur.irrig - r.irrig > 0 ? ` (${Math.round(cur.irrig - r.irrig)} mm less than now)` : ' (similar to now)') : ''
-    ok(`Needs about ${Math.round(r.irrig)} mm of irrigation in the dry season${cmp}.`)
-  } else ok('Grows on leftover soil moisture and dry-season rain alone, so no irrigation is needed.')
+    const mm = Math.round(r.irrig)
+    ok(!cur ? tr('Needs about {mm} mm of irrigation in the dry season.', { mm })
+      : cur.irrig - r.irrig > 0 ? tr('Needs about {mm} mm of irrigation in the dry season ({less} mm less than now).', { mm, less: Math.round(cur.irrig - r.irrig) })
+      : tr('Needs about {mm} mm of irrigation in the dry season (similar to now).', { mm }))
+  } else ok(tr('Grows on leftover soil moisture and dry-season rain alone, so no irrigation is needed.'))
   for (const e of r.ds) {
-    const fil = CROPS[e.crop].fil
-    if (e.short > 40) warn(`${fil}: about ${Math.round(e.short)} mm short of water with your irrigation, which is a yield risk.`)
-    if (e.heat < 0.85) warn(`${fil} flowers when afternoons reach about ${Math.round(e.peak)} °C: heat stress risk; plant early.`)
-    if (e.soil < 0.85) warn(`${fil} prefers well-drained soil or a different pH than yours; use raised beds or lime as needed.`)
+    const crop = tr(CROPS[e.crop].fil)
+    if (e.short > 40) warn(tr('{crop}: about {mm} mm short of water with your irrigation, which is a yield risk.', { crop, mm: Math.round(e.short) }))
+    if (e.heat < 0.85) warn(tr('{crop} flowers when afternoons reach about {t} °C: heat stress risk; plant early.', { crop, t: Math.round(e.peak) }))
+    if (e.soil < 0.85) warn(tr('{crop} prefers well-drained soil or a different pH than yours; use raised beds or lime as needed.', { crop }))
   }
-  if (Math.max(...r.ds.map((e) => CROPS[e.crop].capital), 0) > farm.budget) warn('Needs more capital than your budget setting. Ask about DA or Landbank production loans.')
+  if (Math.max(...r.ds.map((e) => CROPS[e.crop].capital), 0) > farm.budget) warn(tr('Needs more capital than your budget setting. Ask about DA or Landbank production loans.'))
   return out.slice(0, 7)
 }
 
@@ -229,21 +233,23 @@ export function cropAdvice(farm, start, moist = null, only = null) {
     const flowerMonth = MON[monthAt(start, Math.round(c.days * 0.65))]
 
     const reasons = []
-    const ok = (text) => reasons.push({ text, warn: false })
-    const warn = (text) => reasons.push({ text, warn: true })
-    if (now.short > 40) warn(`Needs about ${c.water} mm of water; rain and your water source leave it ~${Math.round(now.short)} mm short.`)
-    else if (now.irrigation > 400) warn(`Uses a lot of irrigation water (~${Math.round(now.irrigation)} mm this season).`)
-    else if (now.irrigation > 0) ok(`Needs only ~${Math.round(now.irrigation)} mm of irrigation on top of rain.`)
+    // { key, vars } so the line renders in the app's current language (rtext in src/lib/i18n.js); `text` = English fallback
+    const line = (key, vars, w) => reasons.push({ key, vars, warn: w, text: key.replace(/\{(\w+)\}/g, (_, k) => vars?.[k] ?? '') })
+    const ok = (key, vars) => line(key, vars, false)
+    const warn = (key, vars) => line(key, vars, true)
+    if (now.short > 40) warn('Needs about {need} mm of water; rain and your water source leave it ~{short} mm short.', { need: c.water, short: Math.round(now.short) })
+    else if (now.irrigation > 400) warn('Uses a lot of irrigation water (~{mm} mm this season).', { mm: Math.round(now.irrigation) })
+    else if (now.irrigation > 0) ok('Needs only ~{mm} mm of irrigation on top of rain.', { mm: Math.round(now.irrigation) })
     else ok('Rain alone covers its water need.')
-    if (offSeason) warn(`${c.fil} is a dry-season crop. Monsoon rain damages the leaves; plant it Oct–Dec instead.`)
+    if (offSeason) warn('{crop} is a dry-season crop. Monsoon rain damages the leaves; plant it Oct–Dec instead.', { crop: c.fil })
     if (afterRice && crop === 'rice') warn('Rice right after rice tires the soil and builds up pests.')
     if (now.flood < 0.85) warn('Heavy monsoon rain during its season may waterlog it. Use raised beds.')
     else if (!c.upland && now.rain > c.water * 0.8) ok('Thrives on the monsoon rain in its season.')
-    if (now.heat < 0.85) warn(`Flowers in ${flowerMonth} when afternoons reach ~${Math.round(now.peak)} °C, which risks heat stress.`)
-    else ok(`Flowering in ${flowerMonth} stays below heat-stress temperatures.`)
+    if (now.heat < 0.85) warn('Flowers in {month} when afternoons reach ~{t} °C, which risks heat stress.', { month: flowerMonth, t: Math.round(now.peak) })
+    else ok('Flowering in {month} stays below heat-stress temperatures.', { month: flowerMonth })
     if (now.soil < 0.85) warn('Your soil’s drainage or pH isn’t ideal for it.')
-    if (dryNow) warn(`Topsoil is dry right now (${Math.round(moist)}%). Water before planting.`)
-    else if (moist != null && moist >= 45) ok(`Soil moisture now (${Math.round(moist)}%) is good for planting.`)
+    if (dryNow) warn('Topsoil is dry right now ({n}%). Water before planting.', { n: Math.round(moist) })
+    else if (moist != null && moist >= 45) ok('Soil moisture now ({n}%) is good for planting.', { n: Math.round(moist) })
     if (future.suit < now.suit - 0.15) warn('Gets riskier by 2050 as dry seasons get hotter and drier.')
     if (c.legume) ok('Adds nitrogen to your soil for the next crop.')
     if (c.value >= 4) ok('High market value.')
