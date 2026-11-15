@@ -73,7 +73,7 @@ export default function FarmSheet() {
 
   return (
     <Sheet open={open} onClose={close} label="Farm settings">
-      <h2 className="mb-2 text-lg font-bold">View / Itsura</h2>
+      <h2 className="mb-2 text-lg font-bold">View</h2>
       <Seg
         className="mb-1.5"
         label="View mode"
@@ -82,9 +82,9 @@ export default function FarmSheet() {
           close()
           setMode(m)
         }}
-        options={[['simple', 'Simple (magsasaka)'], ['detailed', 'Detailed (technician)']]}
+        options={[['simple', 'Simple (farmer)'], ['detailed', 'Detailed (technician)']]}
       />
-      <p className="note mb-3.5">Simple: Filipino, big text, voice. Detailed: all scores, charts and NASA data.</p>
+      <p className="note mb-3.5">Simple: big text, just what to do. Detailed: all scores, charts and NASA data.</p>
 
       <h2 className="text-lg font-bold">My farm</h2>
       <label className="field-label" htmlFor="f_name">Farmer / farm name</label>

@@ -24,8 +24,8 @@ export function sunTimes(lat, lon, d) {
   return { rise: (noon - 4 * ha) / 60, set: (noon + 4 * ha) / 60 }
 }
 
-const TXT = { storm: 'Malakas na ulan', rain: 'Uulan', cloud: 'Maulap', partly: 'Bahagyang maulap', sun: 'Maaraw' }
-export const NOW_TXT = { sun: 'Maaraw', moon: 'Maaliwalas', cmoon: 'Bahagyang maulap', partly: 'Bahagyang maulap', cloud: 'Maulap', rain: 'Umuulan', storm: 'Malakas na ulan' }
+const TXT = { storm: 'Heavy rain', rain: 'Rain', cloud: 'Cloudy', partly: 'Partly cloudy', sun: 'Sunny' }
+export const NOW_TXT = { sun: 'Sunny', moon: 'Clear', cmoon: 'Partly cloudy', partly: 'Partly cloudy', cloud: 'Cloudy', rain: 'Raining', storm: 'Heavy rain' }
 export const SKY_CLASS = { sun: 'sky-sun', moon: 'sky-night', cmoon: 'sky-night', partly: 'sky-partly', cloud: 'sky-cloud', rain: 'sky-rain', storm: 'sky-rain' }
 
 /** clim = {T, X, P} monthly series for "now". */
@@ -72,14 +72,14 @@ export function forecast(prov, clim, lat, lon, now = new Date()) {
   const st = sunTimes(lat, lon, now)
   const cur = Math.round(tempAt(today, h))
   const kNow = iconAt(today, h, st)
-  const hours = [{ lab: 'Ngayon', k: kNow, v: cur + '°' }]
+  const hours = [{ lab: 'Now', k: kNow, v: cur + '°' }]
   for (let i = 1; i <= 11; i++) {
     const H = Math.floor(h) + i
     const day = H >= 24 ? wxDay(prov, clim, addDays(now, 1)) : today
     const hh = H % 24
     hours.push({ lab: fmtH(hh), k: iconAt(day, hh, st), v: Math.round(tempAt(day, hh)) + '°', at: H })
   }
-  for (const [x, lab, k] of [[st.set, 'Paglubog', 'sunset'], [st.rise + 24, 'Pagsikat', 'sunrise']]) {
+  for (const [x, lab, k] of [[st.set, 'Sunset', 'sunset'], [st.rise + 24, 'Sunrise', 'sunrise']]) {
     if (x > h && x < Math.floor(h) + 12) {
       const i = hours.findIndex((o) => o.at > x)
       hours.splice(i < 0 ? hours.length : i, 0, { lab: fmtH(x % 24), k, v: lab, ev: true })

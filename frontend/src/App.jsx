@@ -1,11 +1,14 @@
 import AppHeader from './components/AppHeader'
 import FarmSheet from './components/FarmSheet'
 import LogSheet from './components/LogSheet'
+import SideDrawer from './components/SideDrawer'
 import TabBar from './components/TabBar'
 import { useApp } from './context/AppContext'
 import AnalysisPage from './pages/analysis/AnalysisPage'
 import ChatPage from './pages/ChatPage'
 import CommunityPage from './pages/CommunityPage'
+import ComingSoon from './pages/ComingSoon'
+import CropsPage from './pages/CropsPage'
 
 function BootScreen({ error, retry }) {
   return (
@@ -28,18 +31,21 @@ function BootScreen({ error, retry }) {
 export default function App() {
   const { mode, page, meta, farm, bootError, boot, toastMsg } = useApp()
   const ready = meta && farm
-  const onSky = ready && page === 'analysis' && mode === 'simple'
+  // Simple home: header floats over the sky and blends to white when swiping to Farm
+  const overlay = ready && page === 'analysis' && mode === 'simple'
 
   return (
-    <div data-mode={mode} className="min-h-screen">
-      <div className="relative mx-auto min-h-screen max-w-[430px] overflow-x-clip bg-canvas pb-[92px] shadow-phone">
+    <div id="app-root" data-mode={mode} className="min-h-screen">
+      <div className="relative mx-auto min-h-screen max-w-[430px] overflow-x-clip bg-canvas pb-[112px] shadow-phone">
         {ready ? (
           <>
-            <AppHeader onSky={onSky} />
+            <AppHeader overlay={overlay} />
             <main>
               {page === 'analysis' && <AnalysisPage />}
               {page === 'chat' && <ChatPage />}
               {page === 'community' && <CommunityPage />}
+              {page === 'crops' && <CropsPage />}
+              {(page === 'diagnose' || page === 'map') && <ComingSoon page={page} />}
             </main>
           </>
         ) : (
@@ -49,6 +55,7 @@ export default function App() {
       {ready && (
         <>
           <TabBar />
+          <SideDrawer />
           <FarmSheet />
           <LogSheet />
         </>
@@ -56,7 +63,7 @@ export default function App() {
       <div
         role="status"
         aria-live="polite"
-        className={`pointer-events-none fixed bottom-[84px] left-1/2 z-[60] -translate-x-1/2 rounded-[14px] bg-paddy px-4 py-[9px] text-[13.5px] font-semibold text-white transition-opacity duration-200 ${toastMsg ? 'opacity-100' : 'opacity-0'}`}
+        className={`pointer-events-none fixed bottom-[104px] left-1/2 z-[60] -translate-x-1/2 rounded-[14px] bg-paddy px-4 py-[9px] text-[13.5px] font-semibold text-white transition-opacity duration-200 ${toastMsg ? 'opacity-100' : 'opacity-0'}`}
       >
         {toastMsg}
       </div>

@@ -1,6 +1,6 @@
 // Climate + rotation scoring, run in the browser. Mirrors backend/app/engine/*.py so
 // responses have the same shape as the FastAPI endpoints.
-import { BASE, CROPS, DS_MONTHS, MON, PLANS, PROV, SCEN, WS } from './data'
+import { BASE, CROPS, DS_MONTHS, FARM_CROPS, MON, PLANS, PROV, SCEN, WS } from './data'
 
 const IRRIGATION_MM = { canal: 900, limited: 350, rainfed: 0 }
 const REFERENCE_YEAR = 2026 // wet season used when scoring plans
@@ -184,4 +184,73 @@ export function rankedView(farm, scen) {
   const cur = evaluatePlan(farm, currentPlan(farm), scen)
   const ranked = PLANS.map((p) => evaluatePlan(farm, p, scen)).sort((a, b) => b.total - a.total)
   return { scenario: scen, current: planView(farm, cur), plans: ranked.map((r) => planView(farm, r, cur)) }
+}
+
+/* ---------- crop advice: "what should I plant here, starting on this date?" ---------- */
+// Crops a farmer can add: rice, corn, tobacco.
+export const ADVICE_CROPS = FARM_CROPS
+
+function cropFit(farm, crop, start, scen) {
+  const c = CROPS[crop]
+  const e = evalCrop(farm, crop, start, climate(farm.prov, scen))
+  const short = Math.max(0, e.deficit - IRRIGATION_MM[farm.water])
+  const water = e.deficit > 0 ? Math.max(0, 1 - (short / e.need) * (1.25 - 0.18 * c.drought)) : 1
+  const irrigation = Math.min(e.deficit, IRRIGATION_MM[farm.water]) // mm the farmer has to supply
+  // monsoon waterlogging: upland crops suffer when rain far exceeds their need (paddy rice doesn't)
+  const excess = e.rain / e.need
+  const flood = c.upland && excess > 1.6 ? Math.max(0.5, 1 - (excess - 1.6) * (farm.drain === 'good' ? 0.12 : 0.25)) : 1
+  return { ...e, short, water, irrigation, flood, suit: water * e.heat * e.soil * flood }
+}
+
+/**
+ * Rank crops for planting at `start` on this farm (0–100 fit score):
+ *   suitability now (70%) + 2050 moderate outlook (30%)   — water balance, flowering heat, soil drainage/pH
+ *   − irrigation burden (up to −20)                      — water the farmer must supply
+ *   ± rotation (rice right after rice −12, legume +5)     — the field just came out of wet-season palay
+ *   + market value (high-value crops up to +6)
+ *   live soil moisture < 35% lowers drought-sensitive crops by 15%.
+ */
+export function cropAdvice(farm, start, moist = null, only = null) {
+  const list = (only ? [only] : ADVICE_CROPS).map((crop) => {
+    const c = CROPS[crop]
+    const now = cropFit(farm, crop, start, 'now')
+    const future = cropFit(farm, crop, start, 'ssp245')
+    const dryNow = moist != null && moist < 35 && c.drought <= 2
+    // dry-season-only crops (tobacco): monsoon rain damages the leaves, so May–Sep planting is not advised
+    const offSeason = c.season === 'dry' && start.getMonth() >= 4 && start.getMonth() <= 8
+    const base = (0.7 * now.suit * (dryNow ? 0.85 : 1) + 0.3 * future.suit) * (offSeason ? 0.45 : 1)
+    const waterBurden = 0.2 * Math.min(1, now.irrigation / c.water)
+    const afterRice = start.getMonth() >= 9 || start.getMonth() <= 1 // Oct–Feb: right after the wet-season palay
+    const rotation = (afterRice && crop === 'rice' ? -0.12 : 0) + (c.legume ? 0.05 : 0)
+    const value = (c.value - 3) * 0.03
+    const score = Math.round(clamp(100 * (base - waterBurden + rotation + value)))
+    const tier = score >= 70 ? 'recommended' : score >= 50 ? 'possible' : 'not_recommended'
+    const harvest = addDays(start, c.days)
+    const flowerMonth = MON[monthAt(start, Math.round(c.days * 0.65))]
+
+    const reasons = []
+    const ok = (text) => reasons.push({ text, warn: false })
+    const warn = (text) => reasons.push({ text, warn: true })
+    if (now.short > 40) warn(`Needs about ${c.water} mm of water; rain and your water source leave it ~${Math.round(now.short)} mm short.`)
+    else if (now.irrigation > 400) warn(`Uses a lot of irrigation water (~${Math.round(now.irrigation)} mm this season).`)
+    else if (now.irrigation > 0) ok(`Needs only ~${Math.round(now.irrigation)} mm of irrigation on top of rain.`)
+    else ok('Rain alone covers its water need.')
+    if (offSeason) warn(`${c.fil} is a dry-season crop. Monsoon rain damages the leaves; plant it Oct–Dec instead.`)
+    if (afterRice && crop === 'rice') warn('Rice right after rice tires the soil and builds up pests.')
+    if (now.flood < 0.85) warn('Heavy monsoon rain during its season may waterlog it. Use raised beds.')
+    else if (!c.upland && now.rain > c.water * 0.8) ok('Thrives on the monsoon rain in its season.')
+    if (now.heat < 0.85) warn(`Flowers in ${flowerMonth} when afternoons reach ~${Math.round(now.peak)} °C, which risks heat stress.`)
+    else ok(`Flowering in ${flowerMonth} stays below heat-stress temperatures.`)
+    if (now.soil < 0.85) warn('Your soil’s drainage or pH isn’t ideal for it.')
+    if (dryNow) warn(`Topsoil is dry right now (${Math.round(moist)}%). Water before planting.`)
+    else if (moist != null && moist >= 45) ok(`Soil moisture now (${Math.round(moist)}%) is good for planting.`)
+    if (future.suit < now.suit - 0.15) warn('Gets riskier by 2050 as dry seasons get hotter and drier.')
+    if (c.legume) ok('Adds nitrogen to your soil for the next crop.')
+    if (c.value >= 4) ok('High market value.')
+    // warnings first, so the "why not" is always visible
+    reasons.sort((a, b) => b.warn - a.warn)
+
+    return { crop, fil: c.fil, en: c.en, color: c.color, days: c.days, score, tier, harvest: iso(harvest), reasons }
+  })
+  return list.sort((a, b) => b.score - a.score)
 }

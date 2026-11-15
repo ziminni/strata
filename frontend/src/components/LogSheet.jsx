@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '../context/AppContext'
-import { fmtFil, ymd } from '../lib/format'
+import { fmtD, ymd } from '../lib/format'
 import { QA_TYPES } from '../lib/labels'
 import { stateOn } from '../lib/season'
 import { MicButton } from './Speech'
@@ -16,16 +16,16 @@ export default function LogSheet() {
     if (!req) return
     const st = season ? stateOn(season.segs, crops, req.date) : null
     setF({
-      date: ymd(req.date), type: req.type || 'planting', crop: st?.seg.crop || 'rice',
+      date: ymd(req.date), type: req.type || 'planting', crop: meta.farm_crops.includes(st?.seg.crop) ? st.seg.crop : 'rice',
       amount: '', cost: '', yield: '', cavan: '', bagKg: '50', notes: '', visibility: 'private',
     })
-  }, [req, season, crops])
+  }, [req, season, crops, meta])
   const close = useCallback(() => setLogRequest(null), [setLogRequest])
   if (!req || !f) return null
 
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target ? e.target.value : e }))
   const title = simple
-    ? `${(QA_TYPES[f.type] || ['Tala'])[0]} · ${fmtFil(req.date)}`
+    ? `${(QA_TYPES[f.type] || ['Log'])[0]} · ${fmtD(req.date)}`
     : 'Log for ' + req.date.toLocaleDateString('en-PH', { month: 'long', day: 'numeric' })
 
   const save = async () => {
@@ -37,7 +37,7 @@ export default function LogSheet() {
         yield_kg: +f.yield || (+f.cavan || 0) * (+f.bagKg || 50), notes: f.notes.trim(), visibility: f.visibility,
       })
       close()
-      toast(simple ? 'Naitala na!' : 'Log saved' + (f.visibility === 'community' ? ' and shared' : ''))
+      toast(simple ? 'Saved!' : 'Log saved' + (f.visibility === 'community' ? ' and shared' : ''))
     } catch (e) {
       toast(e.message)
     } finally {
@@ -45,7 +45,7 @@ export default function LogSheet() {
     }
   }
 
-  const cropOptions = Object.entries(crops).map(([k, c]) => <option key={k} value={k}>{c.fil} ({c.en})</option>)
+  const cropOptions = meta.farm_crops.map((k) => <option key={k} value={k}>{crops[k].fil} ({crops[k].en})</option>)
 
   return (
     <Sheet open onClose={close} label={title}>
@@ -67,27 +67,27 @@ export default function LogSheet() {
           <div><label className="field-label">Timbang bawat sako (kg)</label><input className="field" type="number" min="1" value={f.bagKg} onChange={set('bagKg')} /></div>
         </div>
       )}
-      <label className="field-label" htmlFor="lmNotes">{simple ? 'Ano ang nangyari? (puwedeng magsalita)' : 'Notes'}</label>
+      <label className="field-label" htmlFor="lmNotes">{simple ? 'What happened? (you can speak)' : 'Notes'}</label>
       <div className="flex items-start gap-2">
         <textarea
           id="lmNotes"
           className="field"
-          placeholder={simple ? 'Hal. maraming daga sa gilid ng bukid…' : 'What happened? Pests, weather, how the crop looks…'}
+          placeholder={simple ? 'e.g. lots of rats at the edge of the field…' : 'What happened? Pests, weather, how the crop looks…'}
           value={f.notes}
           onChange={set('notes')}
         />
-        <MicButton value={f.notes} onChange={(v) => setF((x) => ({ ...x, notes: v }))} onDenied={() => toast('Naka-off ang mikropono. Mag-type na lang.')} />
+        <MicButton value={f.notes} onChange={(v) => setF((x) => ({ ...x, notes: v }))} onDenied={() => toast('Microphone is off. Please type instead.')} />
       </div>
-      <label className="field-label">{simple ? 'Sino ang makakakita?' : 'Who can see this?'}</label>
+      <label className="field-label">Who can see this?</label>
       <Seg
         label="Visibility"
         value={f.visibility}
         onChange={set('visibility')}
-        options={[['private', simple ? 'Ako lang' : 'Only me'], ['community', simple ? 'Ibahagi sa komunidad' : 'Share to community']]}
+        options={[['private', 'Only me'], ['community', 'Share to community']]}
       />
       <div className="mt-4 flex gap-2">
-        <button type="button" className="btn flex-1" onClick={close}>{simple ? 'Kanselahin' : 'Cancel'}</button>
-        <button type="button" className="btn btn-pri flex-[2]" onClick={save} disabled={saving}>{simple ? 'I-save' : 'Save log'}</button>
+        <button type="button" className="btn flex-1" onClick={close}>Cancel</button>
+        <button type="button" className="btn btn-pri flex-[2]" onClick={save} disabled={saving}>{simple ? 'Save' : 'Save log'}</button>
       </div>
     </Sheet>
   )

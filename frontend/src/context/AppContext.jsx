@@ -8,7 +8,8 @@ import { isRice, seasonSummary, stateOn } from '../lib/season'
 const AppCtx = createContext(null)
 export const useApp = () => useContext(AppCtx)
 
-export const PAGES = ['analysis', 'chat', 'community']
+// every routable page; the bottom navbar shows TABS (see components/TabBar.jsx)
+export const PAGES = ['analysis', 'map', 'crops', 'community', 'chat', 'diagnose']
 const pageFromHash = () => {
   const h = window.location.hash.slice(1)
   return PAGES.includes(h) ? h : 'analysis'
@@ -24,8 +25,10 @@ export function AppProvider({ children }) {
 
   const [mode, setModeState] = useState(() => (lsGet('strata_mode') === 'detailed' ? 'detailed' : 'simple'))
   const [page, setPage] = useState(pageFromHash)
-  const [lang, setLang] = useState(() => (lsGet('strata_mode') === 'detailed' ? 'English' : 'Filipino'))
+  // AI reply language. English only for now; a language picker comes later.
+  const [lang, setLang] = useState('English')
   const [farmSheetOpen, setFarmSheetOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [logRequest, setLogRequest] = useState(null)
   const [toastMsg, setToastMsg] = useState('')
   const toastTimer = useRef(null)
@@ -81,7 +84,6 @@ export function AppProvider({ children }) {
   const setMode = useCallback((m) => {
     setModeState(m)
     lsSet('strata_mode', m)
-    if (m === 'simple') setLang('Filipino')
     window.scrollTo(0, 0)
   }, [])
 
@@ -100,6 +102,13 @@ export function AppProvider({ children }) {
   }, [])
 
   const openLog = useCallback((date, type) => setLogRequest({ date, type }), [])
+
+  // No accounts yet (frontend-only phase): logging out can't end a session, and it must not
+  // wipe the farmer's on-device data. Wire this to real auth when the backend adds it.
+  const logout = useCallback(() => {
+    setDrawerOpen(false)
+    toast('Accounts aren’t set up yet in this demo.')
+  }, [toast])
 
   /* ---------- AI adviser ---------- */
   const [messages, setMessages] = useState([])
@@ -144,7 +153,7 @@ export function AppProvider({ children }) {
     meta, crops, farm, logs, season, sensor, todayState, riceNow, bootError, boot,
     farmVersion, postsVersion,
     mode, setMode, page, go, lang, setLang,
-    farmSheetOpen, setFarmSheetOpen, logRequest, setLogRequest, openLog,
+    farmSheetOpen, setFarmSheetOpen, drawerOpen, setDrawerOpen, logout, logRequest, setLogRequest, openLog,
     toastMsg, toast, saveFarm, addLog,
     messages, busy, ask, clearChat,
   }

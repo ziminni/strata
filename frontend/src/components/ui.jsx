@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Icon } from './Icon'
 
 export function Pill({ tone, className = '', style, children }) {
@@ -101,7 +102,8 @@ export function Sheet({ open, onClose, label, children }) {
     }
   }, [open, onClose])
   if (!open) return null
-  return (
+  // portal to #app-root so the sheet keeps Simple-mode styles but escapes transformed parents
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-[rgb(13_35_26/0.45)] backdrop-blur-[3px]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
@@ -113,7 +115,8 @@ export function Sheet({ open, onClose, label, children }) {
         <div className="mx-auto mb-3 h-1 w-10 rounded-sm bg-[#d8d1bf]" />
         {children}
       </div>
-    </div>
+    </div>,
+    document.getElementById('app-root') || document.body,
   )
 }
 

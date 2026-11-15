@@ -1,10 +1,10 @@
 // In-browser stand-in for the FastAPI backend. Same routes and response shapes as
 // backend/app/routers/*, with data kept in localStorage on this device.
-import { CROPS, DEFAULT_FARM, LOGTYPES, MON, PLANS, POST_TYPES, PROV, SAMPLE_POSTS, SCEN } from './data'
-import { activePlan, buildSegs, climSummary, evaluatePlan, rankedView, segView } from './engine'
+import { CROPS, DEFAULT_FARM, FARM_CROPS, LOGTYPES, MON, PLANS, POST_TYPES, PROV, SAMPLE_POSTS, SCEN } from './data'
+import { activePlan, ADVICE_CROPS, buildSegs, climSummary, cropAdvice, evaluatePlan, rankedView, segView } from './engine'
 
 const ME = 'me'
-const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts' }
+const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v8', plots: 'strata_plots' }
 
 function load(key, fallback) {
   try {
@@ -23,6 +23,18 @@ function save(key, v) {
   return v
 }
 
+const today = () => {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+function parseDate(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s || '')) return null
+  const [y, m, d] = s.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  return Number.isNaN(dt.getTime()) ? null : dt
+}
+const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 function httpError(status, detail) {
   const e = new Error(detail)
   e.status = status
@@ -32,13 +44,44 @@ function httpError(status, detail) {
 /* ---------- store ---------- */
 function seedPosts() {
   const t = Date.now()
-  return SAMPLE_POSTS.map(([hours, author, verified, prov, crop, type, text], i) => ({
-    id: i + 1, text, type, crop, prov, mun: '', author_label: author, mine: false, verified, sample: true, helpful: [], created_at: t - hours * 3600e3,
-  }))
+  return SAMPLE_POSTS.map((sp, i) => {
+    if (Array.isArray(sp)) {
+      const [hours, author, verified, prov, crop, type, text] = sp
+      return {
+        id: i + 1, text, type, crop, prov, mun: '', author_label: author, mine: false, verified, sample: true,
+        helpful: [], comments: [], image: '', images: [], created_at: t - hours * 3600e3,
+      }
+    }
+    const imgList = Array.isArray(sp.images) && sp.images.length ? sp.images : (sp.image ? [sp.image] : [])
+    return {
+      id: i + 1,
+      text: sp.text,
+      type: sp.type,
+      crop: sp.crop || '',
+      prov: sp.prov || 'Valencia City',
+      mun: sp.mun || '',
+      author_label: sp.author,
+      mine: false,
+      verified: !!sp.verified,
+      sample: true,
+      helpful: Array.from({ length: sp.helpful_count || 0 }, (_, k) => `farmer_${k}`),
+      comments: (sp.comments || []).map((c) => ({
+        id: c.id || Date.now() + Math.random(),
+        author: c.author,
+        location: c.mun ? `${c.mun}, ${c.prov}` : c.prov || '',
+        text: c.text,
+        created_at: t - (c.hours || 1) * 3600e3,
+      })),
+      image: imgList[0] || '',
+      images: imgList,
+      created_at: t - sp.hours * 3600e3,
+    }
+  })
 }
 const getFarm = () => normalizeFarm(load(KEYS.farm, () => ({})))
 const getLogs = () => load(KEYS.logs, () => [])
 const getPosts = () => load(KEYS.posts, () => save(KEYS.posts, seedPosts()))
+const getPlots = () => load(KEYS.plots, () => [])
 const nextId = (rows) => rows.reduce((m, r) => Math.max(m, r.id), 0) + 1
 
 /* ---------- validation (mirrors backend/app/schemas.py) ---------- */
@@ -73,20 +116,55 @@ function normalizeFarm(f = {}) {
 }
 
 function postView(p) {
+  const imgList = Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])
   return {
-    id: p.id, text: p.text, type: p.type, crop: p.crop, prov: p.prov, mun: p.mun,
-    author: p.mine ? 'You' : p.author_label, mine: p.mine, verified: p.verified, sample: p.sample,
-    helpful_count: p.helpful.length, helped: p.helpful.includes(ME), created_at: p.created_at,
+    id: p.id,
+    text: p.text,
+    type: p.type,
+    crop: p.crop,
+    prov: p.prov,
+    mun: p.mun,
+    author: p.mine ? 'You' : p.author_label,
+    mine: p.mine,
+    verified: p.verified,
+    sample: p.sample,
+    helpful_count: (p.helpful || []).length,
+    helped: (p.helpful || []).includes(ME),
+    comments: (p.comments || []).map((c) => ({
+      id: c.id,
+      author: c.author,
+      location: c.location || '',
+      text: c.text,
+      created_at: c.created_at,
+    })),
+    image: imgList[0] || '',
+    images: imgList,
+    created_at: p.created_at,
   }
 }
 
-function addPost(text, type, crop) {
+function addPost(text, type, crop, image = '', images = [], place = '', mun = '', prov = '') {
   const farm = getFarm()
   const posts = getPosts()
+  const imgList = Array.isArray(images) && images.length ? images.slice(0, 5) : (image ? [image] : [])
+  const m = mun || place || farm.mun || 'Bagontaas'
+  const pr = prov || farm.prov || 'Valencia City'
   const p = {
-    id: nextId(posts), text, type, crop: crop || '', prov: farm.prov, mun: farm.mun,
-    author_label: (farm.name ? farm.name.split(' ')[0] : 'Farmer') + ' · ' + farm.mun,
-    mine: true, verified: false, sample: false, helpful: [], created_at: Date.now(),
+    id: nextId(posts),
+    text,
+    type,
+    crop: crop || '',
+    prov: pr,
+    mun: m,
+    author_label: (farm.name ? farm.name.split(' ')[0] : 'Farmer') + ' · ' + m,
+    mine: true,
+    verified: false,
+    sample: false,
+    helpful: [],
+    comments: [],
+    image: imgList[0] || '',
+    images: imgList,
+    created_at: Date.now(),
   }
   save(KEYS.posts, [p, ...posts])
   return postView(p)
@@ -114,6 +192,7 @@ export async function handle(method, path, body) {
       scenarios: SCEN,
       crops: Object.fromEntries(Object.entries(CROPS).filter(([k]) => k !== 'fallow').map(([k, c]) => [k, { fil: c.fil, en: c.en, days: c.days, color: c.color, legume: c.legume }])),
       plans: PLANS.map(({ id, name }) => ({ id, name })),
+      farm_crops: FARM_CROPS,
       log_types: LOGTYPES,
       post_types: POST_TYPES,
     }
@@ -171,16 +250,101 @@ export async function handle(method, path, body) {
     const text = String(body?.text || '').trim()
     if (!text) throw httpError(422, 'Write something first')
     if (!POST_TYPES.includes(body.type)) throw httpError(422, 'Unknown post type')
-    return addPost(text.slice(0, 2000), body.type, CROPS[body.crop] ? body.crop : '')
+    const images = Array.isArray(body?.images)
+      ? body.images.filter((x) => typeof x === 'string' && x).slice(0, 5)
+      : []
+    const image = typeof body?.image === 'string' && body.image ? body.image : (images[0] || '')
+    return addPost(
+      text.slice(0, 2000),
+      body.type,
+      CROPS[body.crop] ? body.crop : '',
+      image,
+      images,
+      body.place || '',
+      body.mun || '',
+      body.prov || ''
+    )
   }
   const helpful = p.match(/^\/posts\/(\d+)\/helpful$/)
   if (method === 'POST' && helpful) {
     const posts = getPosts()
     const post = posts.find((x) => x.id === +helpful[1])
     if (!post) throw httpError(404, 'Post not found')
+    post.helpful = post.helpful || []
     post.helpful = post.helpful.includes(ME) ? post.helpful.filter((x) => x !== ME) : [...post.helpful, ME]
     save(KEYS.posts, posts)
     return postView(post)
+  }
+  const commentRoute = p.match(/^\/posts\/(\d+)\/comments$/)
+  if (method === 'POST' && commentRoute) {
+    const posts = getPosts()
+    const post = posts.find((x) => x.id === +commentRoute[1])
+    if (!post) throw httpError(404, 'Post not found')
+    const text = String(body?.text || '').trim()
+    if (!text) throw httpError(422, 'Comment cannot be empty')
+    const farm = getFarm()
+    const author = farm.name ? farm.name.split(' ')[0] : 'You'
+    const newComment = {
+      id: Date.now(),
+      author,
+      location: farm.mun ? `${farm.mun}, ${farm.prov}` : farm.prov,
+      text: text.slice(0, 1000),
+      created_at: Date.now(),
+    }
+    post.comments = post.comments || []
+    post.comments.push(newComment)
+    save(KEYS.posts, posts)
+    return postView(post)
+  }
+
+  /* fields the farmer has planted, each with the advice snapshot taken when it was added */
+  if (route === 'GET /crop-advice') {
+    const base = getFarm()
+    const prov = PROV[q.get('prov')] ? q.get('prov') : base.prov
+    const water = oneOf(q.get('water'), ['canal', 'limited', 'rainfed'], base.water)
+    const start = parseDate(q.get('start')) || today()
+    const moist = q.has('moist') ? num(q.get('moist'), 0, 100, null) : null
+    return { prov, water, start: isoDate(start), crops: cropAdvice({ ...base, prov, water }, start, moist) }
+  }
+  if (route === 'GET /plots') return [...getPlots()].sort((a, b) => b.created_at - a.created_at)
+  if (route === 'POST /plots') {
+    const b = body || {}
+    if (!PROV[b.prov]) throw httpError(422, 'Pick a province')
+    if (!ADVICE_CROPS.includes(b.crop)) throw httpError(422, 'Pick a crop')
+    const planted = parseDate(b.planted)
+    if (!planted) throw httpError(422, 'Pick a planting date')
+    const water = oneOf(b.water, ['canal', 'limited', 'rainfed'], 'canal')
+    const moist = b.moist == null ? null : num(b.moist, 0, 100, null)
+    // score on our side so the snapshot can't be tampered with
+    const [advice] = cropAdvice({ ...getFarm(), prov: b.prov, water }, planted, moist, b.crop)
+    if (advice.tier === 'not_recommended' && !b.acknowledged) throw httpError(422, 'Confirm that you want to plant a not-recommended crop')
+    const plots = getPlots()
+    const plot = {
+      id: nextId(plots),
+      name: String(b.name || '').trim().slice(0, 40) || `Field ${plots.length + 1}`,
+      prov: b.prov,
+      mun: PROV[b.prov].mun.includes(b.mun) ? b.mun : PROV[b.prov].mun[0],
+      lat: Number.isFinite(+b.lat) && b.lat !== null ? +b.lat : null,
+      lon: Number.isFinite(+b.lon) && b.lon !== null ? +b.lon : null,
+      area: num(b.area, 0.01, 1000, 1),
+      water,
+      crop: b.crop,
+      planted: isoDate(planted),
+      score: advice.score,
+      tier: advice.tier,
+      reasons: advice.reasons,
+      harvest: advice.harvest,
+      created_at: Date.now(),
+    }
+    save(KEYS.plots, [plot, ...plots])
+    return plot
+  }
+  const plotId = p.match(/^\/plots\/(\d+)$/)
+  if (method === 'DELETE' && plotId) {
+    const plots = getPlots()
+    if (!plots.some((x) => x.id === +plotId[1])) throw httpError(404, 'Field not found')
+    save(KEYS.plots, plots.filter((x) => x.id !== +plotId[1]))
+    return { ok: true }
   }
 
   if (route === 'POST /chat')

@@ -5,13 +5,13 @@ import { Icon } from './Icon'
 const SR = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null
 export const ttsSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
-export function SpeakButton({ text, label = 'Pakinggan', className = '', style }) {
+export function SpeakButton({ text, label = 'Listen', className = '', style }) {
   const [on, setOn] = useState(false)
   if (!ttsSupported) return null
   const play = () => {
     speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(typeof text === 'function' ? text() : text)
-    u.lang = 'fil-PH'
+    u.lang = 'en-PH'
     u.rate = 0.9
     u.onend = u.onerror = () => setOn(false)
     setOn(true)
@@ -24,7 +24,7 @@ export function SpeakButton({ text, label = 'Pakinggan', className = '', style }
   )
 }
 
-/** Dictation into a text field (fil-PH). Hidden where the browser has no speech recognition. */
+/** Dictation into a text field (en-PH). Hidden where the browser has no speech recognition. */
 export function MicButton({ value, onChange, onDenied }) {
   const [rec, setRec] = useState(false)
   const ref = useRef(null)
@@ -36,7 +36,7 @@ export function MicButton({ value, onChange, onDenied }) {
       return
     }
     const r = new SR()
-    r.lang = 'fil-PH'
+    r.lang = 'en-PH'
     r.interimResults = true
     r.continuous = true
     const base = value ? value.trim() + ' ' : ''
@@ -57,7 +57,7 @@ export function MicButton({ value, onChange, onDenied }) {
     setRec(true)
   }
   return (
-    <button type="button" className={`mic ${rec ? 'rec' : ''}`} onClick={toggle} aria-label="Magsalita / Speak" aria-pressed={rec}>
+    <button type="button" className={`mic ${rec ? 'rec' : ''}`} onClick={toggle} aria-label="Speak" aria-pressed={rec}>
       <Icon name="mic" />
     </button>
   )

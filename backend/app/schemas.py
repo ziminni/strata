@@ -19,8 +19,8 @@ class Weights(BaseModel):
 
 class Farm(BaseModel):
     name: str = Field("", max_length=80)
-    prov: str = "Nueva Ecija"
-    mun: str = "Science City of Muñoz"
+    prov: str = "Valencia City"
+    mun: str = "Bagontaas"
     area: float = Field(2, gt=0, le=1000)
     water: Literal["canal", "limited", "rainfed"] = "canal"
     tex: Literal["clay", "clayloam", "loam", "sandy"] = "clayloam"
@@ -85,6 +85,11 @@ class PostIn(BaseModel):
     text: str = Field(..., min_length=1, max_length=2000)
     type: PostType = "update"
     crop: str = ""
+    place: str = ""
+    mun: str = ""
+    prov: str = ""
+    image: str = ""
+    images: List[str] = Field(default_factory=list)
 
     @field_validator("crop")
     @classmethod
@@ -92,6 +97,10 @@ class PostIn(BaseModel):
         if v and v not in CROPS:
             raise ValueError("Unknown crop")
         return v
+
+
+class CommentIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1000)
 
 
 class ChatMessage(BaseModel):
