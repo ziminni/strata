@@ -17,6 +17,19 @@ if (new URLSearchParams(window.location.search).has('reset')) {
   history.replaceState(null, '', window.location.pathname + window.location.hash)
 }
 
+// Open the app with ?remove-my-posts to delete the community posts you made on this device.
+// Sample posts (and their likes/comments) are kept.
+const POSTS_KEY = 'strata_posts_v8'
+if (new URLSearchParams(window.location.search).has('remove-my-posts')) {
+  try {
+    const posts = JSON.parse(localStorage.getItem(POSTS_KEY))
+    if (Array.isArray(posts)) localStorage.setItem(POSTS_KEY, JSON.stringify(posts.filter((p) => !p.mine)))
+  } catch {
+    /* storage unavailable or unreadable */
+  }
+  history.replaceState(null, '', window.location.pathname + window.location.hash)
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AppProvider>
