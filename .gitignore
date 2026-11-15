@@ -1,0 +1,7 @@
+# /brag demo-video skill (installed locally, not part of the app)
+.claude/skills/brag/
+.claude/skills/brag-slim/
+
+# Generated demo video, poster, and Hyperframes composition
+brag-output/
+brag-output-*/
