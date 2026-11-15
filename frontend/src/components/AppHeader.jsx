@@ -1,5 +1,6 @@
 import { useApp } from '../context/AppContext'
 import { Icon } from './Icon'
+import { tr } from '../lib/i18n'
 
 /** Strata mark: soil strata with a sprout. Uses currentColor so it always matches the wordmark. */
 export function StrataMark({ className = '' }) {
@@ -40,7 +41,7 @@ export default function AppHeader({ overlay }) {
         </div>
         <button
           type="button"
-          aria-label="Open menu"
+          aria-label={tr('Open menu')}
           aria-haspopup="dialog"
           aria-expanded={drawerOpen}
           onClick={() => setDrawerOpen(true)}

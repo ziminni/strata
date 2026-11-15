@@ -1,6 +1,7 @@
 import { useApp } from '../context/AppContext'
 import { TAB_LABELS } from '../lib/labels'
 import { Icon } from './Icon'
+import { tr } from '../lib/i18n'
 
 const TABS = ['analysis', 'chat', 'community']
 const ICON = { analysis: 'home', chat: 'chat', community: 'users' }
@@ -22,7 +23,7 @@ export default function TabBar() {
       style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
     >
       <nav
-        aria-label="Main"
+        aria-label={tr('Main')}
         className="pointer-events-auto relative grid h-[68px] w-full max-w-[398px] grid-cols-3 items-center rounded-[26px] border border-white/70 bg-white/85 px-2 shadow-[0_12px_32px_-10px_rgb(13_59_44/0.35),0_2px_6px_rgb(13_59_44/0.06)] backdrop-blur-xl simple:h-[74px]"
       >
         {/* sliding highlight behind the active side tab */}
@@ -54,7 +55,7 @@ export default function TabBar() {
                 >
                   <Icon name={ICON[p]} />
                 </button>
-                <span className={`absolute bottom-[9px] text-[11.5px] font-extrabold transition-colors simple:text-[12.5px] ${on ? 'text-brand' : 'text-paddy'}`}>{label}</span>
+                <span className={`absolute bottom-[9px] whitespace-nowrap text-[11.5px] font-extrabold transition-colors simple:text-[12.5px] ${on ? 'text-brand' : 'text-paddy'}`}>{label}</span>
               </div>
             )
           return (

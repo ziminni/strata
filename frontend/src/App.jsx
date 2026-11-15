@@ -10,6 +10,7 @@ import ChatPage from './pages/ChatPage'
 import CommunityPage from './pages/CommunityPage'
 import ComingSoon from './pages/ComingSoon'
 import CropsPage from './pages/CropsPage'
+import { tr } from './lib/i18n'
 
 function BootScreen({ error, retry }) {
   return (
@@ -18,11 +19,11 @@ function BootScreen({ error, retry }) {
         <div className="font-display text-[28px] font-extrabold tracking-[-1.2px] text-brand">strata</div>
         {error ? (
           <>
-            <p className="mt-2 mb-3 text-[14px]">Can’t reach the Strata API. Is the backend running on port 8000?</p>
-            <button type="button" className="btn btn-pri" onClick={retry}>Try again</button>
+            <p className="mt-2 mb-3 text-[14px]">{tr('Can’t reach the Strata API. Is the backend running on port 8000?')}</p>
+            <button type="button" className="btn btn-pri" onClick={retry}>{tr('Try again')}</button>
           </>
         ) : (
-          <p className="note mt-2">Loading your farm…</p>
+          <p className="note mt-2">{tr('Loading your farm…')}</p>
         )}
       </div>
     </div>

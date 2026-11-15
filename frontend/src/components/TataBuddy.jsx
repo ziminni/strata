@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Tata from './Tata'
+import { tr, localized } from '../lib/i18n'
 
 // Tap reactions, in order: body motion, face, little effect, and Tata says a line.
 const REACTIONS = [
@@ -12,7 +13,7 @@ const REACTIONS = [
 const FX = { spark: ['✦', '#f2b81f'], heart: ['♥', '#e5566b'], leaf: ['❦', '#4f9e44'] }
 const BURST = [[-46, -38, -30], [-22, -60, 15], [8, -66, -10], [34, -52, 25], [50, -26, 40]]
 const IDLE = ['happy', 'happy', 'lookL', 'happy', 'lookR', 'wink']
-const DEFAULT_LINES = ['Hi! I’m Tata!', 'Hehe, that tickles!', 'Let’s grow something great!', 'I’m made of good soil!', 'Did you check the weather today?']
+const DEFAULT_LINES = localized(['Hi! I’m Tata!', 'Hehe, that tickles!', 'Let’s grow something great!', 'I’m made of good soil!', 'Did you check the weather today?'])
 
 /**
  * Expressive Tata: floats, blinks, looks around, waves; tap him and he reacts and talks.
@@ -48,7 +49,7 @@ export default function TataBuddy({ mood = 'happy', size = 100, className = '', 
     : 'right-[78%] top-1 origin-right'
 
   return (
-    <button type="button" onClick={tap} aria-label="Tata. Tap to say hi" className={`relative inline-block cursor-pointer border-0 bg-transparent p-0 [-webkit-tap-highlight-color:transparent] ${className}`}>
+    <button type="button" onClick={tap} aria-label={tr('Tata. Tap to say hi')} className={`relative inline-block cursor-pointer border-0 bg-transparent p-0 [-webkit-tap-highlight-color:transparent] ${className}`}>
       <span className="tata-anim tata-b-float">
         <span key={n} className={`tata-anim ${reaction?.motion || ''}`}>
           <Tata mood={mood} face={face} blink wave={mood === 'happy' ? (reaction ? 'once' : 'idle') : undefined} size={size} className="block" />

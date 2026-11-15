@@ -1,3 +1,5 @@
+import { tr } from '../lib/i18n'
+
 // Tata — Strata's mascot: a little clod of farm soil with a rice sprout.
 // Moods follow the mascot sheet: happy (Kumusta!), rain (Uulan!), thirsty (Uhaw ang palay), harvest (Anihan na!).
 // Palette: damo #5fae4f · ibabaw #8b5a3c · gitna #a8714a · ilalim #6e4630 · strata green #1f8a4c · ink #3b2a1e
@@ -112,7 +114,7 @@ function Face({ face, blink }) {
 export default function Tata({ mood = 'happy', size = 120, className = '', title, animated = false, face, wave, blink }) {
   const c = MOODS[mood] || MOODS.happy
   const thirsty = mood === 'thirsty'
-  const label = title || { happy: 'Tata waving hello', rain: 'Tata expecting rain', thirsty: 'Tata, thirsty in the heat', harvest: 'Tata celebrating the harvest' }[mood]
+  const label = tr(title || { happy: 'Tata waving hello', rain: 'Tata expecting rain', thirsty: 'Tata, thirsty in the heat', harvest: 'Tata celebrating the harvest' }[mood])
   return (
     <svg viewBox="0 0 200 224" width={size} height={size * 1.12} className={className} role="img" aria-label={label}>
       <title>{label}</title>

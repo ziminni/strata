@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { tr } from '../lib/i18n'
 
 // Simple green pin (an inline SVG, so no marker image assets are needed).
 const PIN = L.divIcon({
@@ -72,7 +73,7 @@ export default function LocationMap({ lat, lon, center, onPick }) {
 
   return (
     <div className="relative z-0 overflow-hidden rounded-2xl ring-1 ring-line">
-      <div ref={el} className="h-[220px] w-full" role="application" aria-label="Map: tap to set your field location" />
+      <div ref={el} className="h-[220px] w-full" role="application" aria-label={tr('Map: tap to set your field location')} />
     </div>
   )
 }
