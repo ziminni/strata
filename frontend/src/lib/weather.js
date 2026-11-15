@@ -1,8 +1,61 @@
-// Prototype forecast generated deterministically from the province's NASA POWER climatology.
-// Swap for a PAGASA forecast feed in production.
+// Weather forecast. Real data from Open-Meteo (https://open-meteo.com, free, no key) once loadForecast() has run;
+// until then — or offline, or beyond the 16-day forecast window — it falls back to a deterministic
+// forecast generated from the province's NASA POWER climatology.
 import { addDays, ymd } from './format'
+import { localized } from './i18n'
 
-function rng(seed) {
+/* ---------------- live forecast (Open-Meteo) ---------------- */
+
+const LIVE = new Map() // prov → { daily: Map(ymd → day), hourly: Map('ymdTHH' → {temp, k}), current, sun: Map(ymd → {rise, set}) }
+
+// WMO weather code → our sky keys
+function wmoKey(code) {
+  if (code >= 95) return 'storm'
+  if ([65, 67, 82].includes(code)) return 'storm'
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain'
+  if (code >= 71 && code <= 86) return 'rain'
+  if (code === 3 || code === 45 || code === 48) return 'cloud'
+  if (code === 2) return 'partly'
+  return 'sun' // 0, 1
+}
+const nightKey = (k) => (k === 'sun' ? 'moon' : k === 'partly' ? 'cmoon' : k)
+const hourOf = (iso) => { const [h, m] = iso.slice(11, 16).split(':').map(Number); return h + m / 60 }
+
+/** Fetch the real forecast for a province (lat/lon = where to read it). Resolves true when live data is in. */
+export async function loadForecast(prov, lat, lon) {
+  const qs = new URLSearchParams({
+    latitude: lat, longitude: lon, timezone: 'Asia/Manila', forecast_days: 16, past_days: 1,
+    current: 'temperature_2m,weather_code,is_day',
+    hourly: 'temperature_2m,weather_code,is_day',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_gusts_10m_max,sunrise,sunset',
+  })
+  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${qs}`)
+  if (!res.ok) throw new Error(`Weather ${res.status}`)
+  const j = await res.json()
+  const daily = new Map(), sun = new Map(), hourly = new Map()
+  j.daily.time.forEach((t, i) => {
+    const k = wmoKey(j.daily.weather_code[i])
+    const chance = j.daily.precipitation_probability_max[i] ?? (k === 'rain' || k === 'storm' ? 70 : 10)
+    daily.set(t, {
+      d: new Date(`${t}T00:00`), hi: Math.round(j.daily.temperature_2m_max[i]), lo: Math.round(j.daily.temperature_2m_min[i]),
+      chance: Math.round(chance / 5) * 5, k, txt: TXT[k], gust: Math.round(j.daily.wind_gusts_10m_max[i] ?? 0),
+      mm: j.daily.precipitation_sum[i], live: true,
+    })
+    sun.set(t, { rise: hourOf(j.daily.sunrise[i]), set: hourOf(j.daily.sunset[i]) })
+  })
+  j.hourly.time.forEach((t, i) => {
+    const k = wmoKey(j.hourly.weather_code[i])
+    hourly.set(t.slice(0, 13), { temp: j.hourly.temperature_2m[i], k: j.hourly.is_day[i] ? k : nightKey(k) })
+  })
+  const ck = wmoKey(j.current.weather_code)
+  const current = { temp: j.current.temperature_2m, k: j.current.is_day ? ck : nightKey(ck) }
+  LIVE.set(prov, { daily, hourly, current, sun, at: Date.now() })
+  return true
+}
+
+export const hasLiveForecast = (prov) => LIVE.has(prov)
+
+export function rng(seed) {
   let h = 2166136261
   for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619)
   return () => {
@@ -24,12 +77,14 @@ export function sunTimes(lat, lon, d) {
   return { rise: (noon - 4 * ha) / 60, set: (noon + 4 * ha) / 60 }
 }
 
-const TXT = { storm: 'Heavy rain', rain: 'Rain', cloud: 'Cloudy', partly: 'Partly cloudy', sun: 'Sunny' }
-export const NOW_TXT = { sun: 'Sunny', moon: 'Clear', cmoon: 'Partly cloudy', partly: 'Partly cloudy', cloud: 'Cloudy', rain: 'Raining', storm: 'Heavy rain' }
+const TXT = { storm: 'Heavy rain', rain: 'Rain', cloud: 'Cloudy', partly: 'Partly cloudy', sun: 'Sunny' } // English; shown via tr()
+export const NOW_TXT = localized({ sun: 'Sunny', moon: 'Clear', cmoon: 'Partly cloudy', partly: 'Partly cloudy', cloud: 'Cloudy', rain: 'Raining', storm: 'Heavy rain' })
 export const SKY_CLASS = { sun: 'sky-sun', moon: 'sky-night', cmoon: 'sky-night', partly: 'sky-partly', cloud: 'sky-cloud', rain: 'sky-rain', storm: 'sky-rain' }
 
 /** clim = {T, X, P} monthly series for "now". */
 export function wxDay(prov, clim, d) {
+  const live = LIVE.get(prov)?.daily.get(ymd(d))
+  if (live) return { ...live, d }
   const m = d.getMonth()
   const r = rng(prov + ymd(d))
   const P = clim.P[m], X = clim.X[m], T = clim.T[m]
@@ -67,6 +122,8 @@ export function fmtH(h) {
 }
 
 export function forecast(prov, clim, lat, lon, now = new Date()) {
+  const L = LIVE.get(prov)
+  if (L && L.daily.has(ymd(now))) return liveForecast(L, prov, clim, lat, lon, now)
   const today = wxDay(prov, clim, now)
   const h = now.getHours() + now.getMinutes() / 60
   const st = sunTimes(lat, lon, now)
@@ -87,4 +144,31 @@ export function forecast(prov, clim, lat, lon, now = new Date()) {
   }
   const days = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => (i ? wxDay(prov, clim, addDays(now, i)) : today))
   return { today, h, cur, kNow, hours, days }
+}
+
+/** Same shape as forecast(), built from the real Open-Meteo hourly data. */
+function liveForecast(L, prov, clim, lat, lon, now) {
+  const today = wxDay(prov, clim, now)
+  const h = now.getHours() + now.getMinutes() / 60
+  const st = L.sun.get(ymd(now)) || sunTimes(lat, lon, now)
+  const stNext = L.sun.get(ymd(addDays(now, 1))) || st
+  const key = (H) => `${ymd(addDays(now, Math.floor(H / 24)))}T${String(H % 24).padStart(2, '0')}`
+  const nowHr = L.hourly.get(key(Math.floor(h)))
+  const cur = Math.round(L.current?.temp ?? nowHr?.temp ?? tempAt(today, h))
+  const kNow = L.current?.k ?? nowHr?.k ?? iconAt(today, h, st)
+  const hours = [{ lab: 'Now', k: kNow, v: cur + '°' }]
+  for (let i = 1; i <= 11; i++) {
+    const H = Math.floor(h) + i
+    const o = L.hourly.get(key(H))
+    const day = H >= 24 ? wxDay(prov, clim, addDays(now, 1)) : today
+    hours.push({ lab: fmtH(H % 24), k: o ? o.k : iconAt(day, H % 24, st), v: Math.round(o ? o.temp : tempAt(day, H % 24)) + '°', at: H })
+  }
+  for (const [x, lab, k] of [[st.set, 'Sunset', 'sunset'], [stNext.rise + 24, 'Sunrise', 'sunrise']]) {
+    if (x > h && x < Math.floor(h) + 12) {
+      const i = hours.findIndex((o) => o.at > x)
+      hours.splice(i < 0 ? hours.length : i, 0, { lab: fmtH(x % 24), k, v: lab, ev: true })
+    }
+  }
+  const days = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => (i ? wxDay(prov, clim, addDays(now, i)) : today))
+  return { today, h, cur, kNow, hours, days, live: true }
 }

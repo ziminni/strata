@@ -1,5 +1,6 @@
 import { useApp } from '../context/AppContext'
 import { Icon } from './Icon'
+import { tr } from '../lib/i18n'
 
 /** Strata mark: soil strata with a sprout. Uses currentColor so it always matches the wordmark. */
 export function StrataMark({ className = '' }) {
@@ -15,15 +16,13 @@ export function StrataMark({ className = '' }) {
   )
 }
 
-// Over the sky the header is white-on-transparent; it blends to the white bar as --home-p goes 0 → 1.
+// The Home header is transparent: the sky / Farm page shows through, even mid-swipe. Only the text colour blends as --home-p goes 0 → 1.
 const OVERLAY = {
-  header: { background: 'rgb(255 255 255 / var(--home-p))', boxShadow: '0 1px 2px rgb(0 0 0 / calc(var(--home-p) * 0.06))' },
   brand: {
     color: 'color-mix(in srgb, #fff calc((1 - var(--home-p)) * 100%), var(--color-brand))',
     textShadow: '0 1px 6px rgb(0 0 0 / calc((1 - var(--home-p)) * 0.15))',
   },
   button: {
-    background: 'color-mix(in srgb, rgb(255 255 255 / 0.22) calc((1 - var(--home-p)) * 100%), var(--color-chip))',
     color: 'color-mix(in srgb, #fff calc((1 - var(--home-p)) * 100%), #1c2620)',
   },
 }
@@ -32,8 +31,8 @@ export default function AppHeader({ overlay }) {
   const { setDrawerOpen, drawerOpen } = useApp()
   return (
     <header
-      className={overlay ? 'absolute inset-x-0 top-0 z-30' : 'relative z-30 border-b border-[#dde3df] bg-white shadow-[0_1px_2px_rgb(0_0_0/0.06)]'}
-      style={{ paddingTop: 'env(safe-area-inset-top)', ...(overlay ? OVERLAY.header : null) }}
+      className={`${overlay ? 'absolute inset-x-0 top-0 z-30' : 'relative z-30 bg-white'} lg:hidden`} // desktop: logo + menu live in the sidebar
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex h-14 items-center gap-2 px-3.5 pt-1">
         <div className={`flex flex-1 items-center gap-1.5 ${overlay ? '' : 'text-brand'}`} style={overlay ? OVERLAY.brand : undefined}>
@@ -42,11 +41,11 @@ export default function AppHeader({ overlay }) {
         </div>
         <button
           type="button"
-          aria-label="Open menu"
+          aria-label={tr('Open menu')}
           aria-haspopup="dialog"
           aria-expanded={drawerOpen}
           onClick={() => setDrawerOpen(true)}
-          className={`grid size-10 flex-none place-items-center rounded-full [&_.ic]:size-[21px] [&_.ic]:stroke-[2.2] ${overlay ? '' : 'bg-chip text-[#1c2620] active:bg-[#d8dfda]'}`}
+          className={`grid size-10 flex-none place-items-center rounded-full [&_.ic]:size-[21px] [&_.ic]:stroke-[2.2] ${overlay ? '' : 'text-[#1c2620]'} active:opacity-60`}
           style={overlay ? OVERLAY.button : undefined}
         >
           <Icon name="menu" />

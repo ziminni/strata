@@ -1,3 +1,5 @@
+import { tr } from '../lib/i18n'
+
 // Tata — Strata's mascot: a little clod of farm soil with a rice sprout.
 // Moods follow the mascot sheet: happy (Kumusta!), rain (Uulan!), thirsty (Uhaw ang palay), harvest (Anihan na!).
 // Palette: damo #5fae4f · ibabaw #8b5a3c · gitna #a8714a · ilalim #6e4630 · strata green #1f8a4c · ink #3b2a1e
@@ -37,10 +39,82 @@ function Eye({ x, mood }) {
   )
 }
 
-export default function Tata({ mood = 'happy', size = 120, className = '', title }) {
+// Optional expression overrides (opt-in; used by the chat page). Without `face`, the mood's own face is drawn.
+// look = pupil offset, brows = brow path, mouth = 'grin' | 'grin-big' | 'o' | a stroke path.
+const RAISED = 'M70 78Q80 72 90 78M110 78Q120 72 130 78'
+const FACES = {
+  happy: { look: [1.5, 2], brows: 'M70 83Q80 78 90 83M110 83Q120 78 130 83', mouth: 'grin' },
+  excited: { eyes: 'arc', brows: RAISED, mouth: 'grin-big' },
+  wink: { eyes: 'wink', look: [1.5, 2], brows: 'M70 83Q80 78 90 83M110 80Q120 74 130 80', mouth: 'grin' },
+  thinking: { look: [5, -4], brows: 'M70 84Q80 81 90 84M110 78Q120 71 130 79', mouth: 'M92 128Q101 124 110 129' },
+  sad: { look: [0, 4], brows: 'M70 84Q80 80 90 77M110 77Q120 80 130 84', mouth: 'M88 132Q100 121 112 132' },
+  surprised: { look: [0, 0], pupil: 4.5, brows: RAISED, mouth: 'o' },
+  love: { eyes: 'heart', brows: RAISED, mouth: 'grin-big' },
+  lookL: { look: [-5, 1], brows: 'M70 83Q80 78 90 83M110 83Q120 78 130 83', mouth: 'grin' },
+  lookR: { look: [5, 1], brows: 'M70 83Q80 78 90 83M110 83Q120 78 130 83', mouth: 'grin' },
+  worried: { look: [0, 2], brows: 'M70 84Q80 80 90 77M110 77Q120 80 130 84', mouth: 'M88 129q4-5 8 0t8 0t8 0' },
+}
+
+function OpenEye({ x, look = [0, 0], pupil = 7 }) {
+  return (
+    <g>
+      <ellipse cx={x} cy="102" rx="12.5" ry="13.5" fill="#fff" stroke={INK} strokeWidth="4" />
+      <g style={{ transform: `translate(${look[0]}px, ${look[1]}px)`, transition: 'transform .35s ease' }}>
+        <circle cx={x} cy="102" r={pupil} fill={INK} />
+        <circle cx={x + 2} cy="98" r="2.4" fill="#fff" />
+      </g>
+    </g>
+  )
+}
+
+const HeartEye = ({ x }) => (
+  <path className="tata-expr" d={`M${x} 112 C${x - 16} 101 ${x - 12} 88 ${x} 96 C${x + 12} 88 ${x + 16} 101 ${x} 112Z`} fill="#e5566b" stroke={INK} strokeWidth="3" strokeLinejoin="round" />
+)
+const ArcEye = ({ x }) => <path d={`M${x - 10} 104 Q${x} 92 ${x + 10} 104`} fill="none" stroke={INK} strokeWidth="4.5" strokeLinecap="round" />
+
+function Face({ face, blink }) {
+  const f = FACES[face] || FACES.happy
+  return (
+    <g>
+      {f.eyes === 'arc' ? (
+        <><ArcEye x={80} /><ArcEye x={120} /></>
+      ) : f.eyes === 'heart' ? (
+        <><HeartEye x={80} /><HeartEye x={120} /></>
+      ) : (
+        // both eyes share one blink group so they always close together; no blinking mid-wink
+        <g className={blink && f.eyes !== 'wink' ? 'tata-blink' : undefined}>
+          {f.eyes === 'wink' ? <ArcEye x={80} /> : <OpenEye x={80} look={f.look} pupil={f.pupil} />}
+          <OpenEye x={120} look={f.look} pupil={f.pupil} />
+        </g>
+      )}
+      <path key={`b-${face}`} className="tata-expr" d={f.brows} fill="none" stroke={INK} strokeWidth="3.5" strokeLinecap="round" />
+      <ellipse cx="64" cy="122" rx="9" ry="5.5" fill="#e8857a" opacity="0.9" />
+      <ellipse cx="136" cy="122" rx="9" ry="5.5" fill="#e8857a" opacity="0.9" />
+      <g key={`m-${face}`} className="tata-expr">
+        {f.mouth === 'grin' ? (
+          <><path d="M88 120Q100 138 112 120Z" fill={INK} stroke={INK} strokeWidth="3" strokeLinejoin="round" /><path d="M94 127Q100 133 106 127Q100 124 94 127z" fill="#e8857a" /></>
+        ) : f.mouth === 'grin-big' ? (
+          <><path d="M84 117Q100 146 116 117Z" fill={INK} stroke={INK} strokeWidth="3" strokeLinejoin="round" /><path d="M92 131Q100 139 108 131Q100 127 92 131z" fill="#e8857a" /></>
+        ) : f.mouth === 'o' ? (
+          <ellipse cx="100" cy="127" rx="6" ry="8" fill={INK} />
+        ) : (
+          <path d={f.mouth} fill="none" stroke={INK} strokeWidth="3.5" strokeLinecap="round" />
+        )}
+      </g>
+    </g>
+  )
+}
+
+/**
+ * animated  dashboard idle motion: bob, breathing shadow, looping wave (CSS in index.css)
+ * face      optional expression override (see FACES)
+ * wave      'idle' | 'once' — chat-page wave for the raised arm (happy mood only; CSS lives in ChatPage)
+ * blink     blinking eyes (chat page)
+ */
+export default function Tata({ mood = 'happy', size = 120, className = '', title, animated = false, face, wave, blink }) {
   const c = MOODS[mood] || MOODS.happy
   const thirsty = mood === 'thirsty'
-  const label = title || { happy: 'Tata waving hello', rain: 'Tata expecting rain', thirsty: 'Tata, thirsty in the heat', harvest: 'Tata celebrating the harvest' }[mood]
+  const label = tr(title || { happy: 'Tata waving hello', rain: 'Tata expecting rain', thirsty: 'Tata, thirsty in the heat', harvest: 'Tata celebrating the harvest' }[mood])
   return (
     <svg viewBox="0 0 200 224" width={size} height={size * 1.12} className={className} role="img" aria-label={label}>
       <title>{label}</title>
@@ -70,7 +144,10 @@ export default function Tata({ mood = 'happy', size = 120, className = '', title
       )}
 
       {/* ground shadow */}
-      <ellipse cx="100" cy="211" rx="62" ry="7" fill={INK} opacity="0.14" />
+      <ellipse cx="100" cy="211" rx="62" ry="7" fill={INK} opacity="0.14" className={animated ? 'tata-shadow' : undefined} />
+
+      {/* everything above the shadow bobs when animated */}
+      <g className={animated ? 'tata-bob' : undefined}>
 
       {/* arms (behind the body) */}
       {mood === 'harvest' ? (
@@ -81,7 +158,7 @@ export default function Tata({ mood = 'happy', size = 120, className = '', title
       ) : mood === 'happy' ? (
         <>
           <Arm d="M48 128 Q30 140 26 160" /><Hand x={26} y={162} />
-          <Arm d="M152 124 Q172 112 176 90" /><Hand x={176} y={88} />
+          <g className={wave ? `tata-chat-arm tata-chat-wave-${wave}` : animated ? 'tata-wave' : undefined}><Arm d="M152 124 Q172 112 176 90" /><Hand x={176} y={88} /></g>
         </>
       ) : (
         <>
@@ -147,8 +224,11 @@ export default function Tata({ mood = 'happy', size = 120, className = '', title
       {(mood === 'rain' || thirsty) && <path d="M146 72q-5 8 0 11 5-3 0-11z" fill="#7cc3f0" stroke={INK} strokeWidth="2.4" />}
 
       {/* face */}
-      <Eye x={80} mood={mood} />
-      <Eye x={120} mood={mood} />
+      {face ? <Face face={face} blink={blink} /> : <>
+      <g className={blink && mood !== 'harvest' ? 'tata-blink' : undefined}>
+        <Eye x={80} mood={mood} />
+        <Eye x={120} mood={mood} />
+      </g>
       {mood !== 'harvest' && (
         <g fill="none" stroke={INK} strokeWidth="3.5" strokeLinecap="round">
           {thirsty ? (
@@ -170,6 +250,8 @@ export default function Tata({ mood = 'happy', size = 120, className = '', title
           <path d="M94 127Q100 133 106 127Q100 124 94 127z" fill="#e8857a" />
         </g>
       )}
+      </>}
+      </g>
     </svg>
   )
 }

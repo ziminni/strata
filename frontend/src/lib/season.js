@@ -1,10 +1,11 @@
 // Crop-calendar helpers. `segs` come from GET /api/season with start/end parsed to Dates.
 import { addDays, dayDiff } from './format'
+import { localized } from './i18n'
 
-export const PHASE_LEGEND = [
+export const PHASE_LEGEND = localized([
   ['Land prep', '#b08968'], ['Planting', '#6aa84f'], ['Growing', '#7fb069'],
   ['Flowering', '#e0a526'], ['Ripening', '#c98a14'], ['Harvest', '#a0522d'],
-]
+])
 
 export function phaseOf(crop, k, days) {
   const f = k / days

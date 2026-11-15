@@ -111,7 +111,7 @@ export const LOGTYPES = {
 export const POST_TYPES = ['update', 'question', 'advice', 'warning', 'harvest']
 
 export const DEFAULT_FARM = {
-  name: '', prov: 'Valencia City', mun: 'Bagontaas', area: 2, water: 'canal', tex: 'clayloam', drain: 'mod',
+  name: 'Sheldon Cooper', prov: 'Valencia City', mun: 'Bagontaas', area: 2, water: 'canal', tex: 'clayloam', drain: 'mod',
   ph: 5.9, om: 1.6, wet: 'rice', dry: 'rice', straw: 'burn', budget: 3.5, labor: 3.5,
   w: { soil: 4, water: 3, inc: 5, res: 4, simp: 3 }, adopted: null,
 }

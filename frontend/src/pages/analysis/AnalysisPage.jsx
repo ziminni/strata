@@ -1,9 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { API_MODE } from '../../api'
 import { useApp } from '../../context/AppContext'
+import { useIsDesktop } from '../../hooks/useMedia'
 import CropsPage from '../CropsPage'
+import DesktopHome from './DesktopHome'
 import DetailedView from './DetailedView'
 import SimpleView from './SimpleView'
+import { tr } from '../../lib/i18n'
 
 const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)'
 const DURATION = 420
@@ -17,7 +20,7 @@ function HomeSwitch({ index, onPick, overlay }) {
   return (
     <div
       role="tablist"
-      aria-label="Home"
+      aria-label={tr('Home')}
       className={`${overlay ? 'absolute inset-x-0 z-30 top-[calc(56px+env(safe-area-inset-top))]' : 'relative'} flex justify-center`}
       style={color}
     >
@@ -44,16 +47,22 @@ function FragmentTab({ i, label, on, onPick }) {
         onClick={() => onPick(i)}
         className={`px-4 pt-2 pb-2.5 text-[15.5px] tracking-[-0.01em] transition-opacity simple:text-[17px] ${on ? 'font-extrabold' : 'font-semibold opacity-70 hover:opacity-100'}`}
       >
-        {label}
+        {tr(label)}
       </button>
     </>
   )
 }
 
 export default function AnalysisPage() {
-  const { mode } = useApp()
+  const { mode, farmRequest, farmPending } = useApp()
+  const desktop = useIsDesktop()
   const overlay = mode === 'simple' // header + switch float over the sky
-  const [index, setIndex] = useState(0)
+  // open straight on Farm if a freshly analysed crop is waiting to be shown
+  const [index, setIndex] = useState(() => {
+    if (!farmPending.current) return 0
+    farmPending.current = false
+    return 1
+  })
   const [peekY, setPeekY] = useState(0) // scroll offset while the hidden panel is being revealed
   const track = useRef(null)
   const drag = useRef(null)
@@ -94,6 +103,14 @@ export default function AnalysisPage() {
       el.addEventListener('transitionend', done)
     })
   }
+
+  // already on Home: slide over to Farm
+  useEffect(() => {
+    if (!farmPending.current) return
+    farmPending.current = false
+    animateTo(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmRequest])
 
   /* ---------- swipe ---------- */
   const onPointerDown = (e) => {
@@ -145,13 +162,28 @@ export default function AnalysisPage() {
     }
   }
 
+  // desktop (≥1024px): no swipe. Simple → dashboard grid; Detailed → Dashboard and Farm side by side
+  if (desktop && mode === 'simple') return <DesktopHome />
+  if (desktop)
+    return (
+      <section className="grid grid-cols-2 items-start gap-6" aria-label={tr('Home')}>
+        <div className="min-w-0 px-4 pb-2.5" role="region" aria-label={tr('Dashboard')}>
+          {mode === 'simple' ? <SimpleView /> : <DetailedView />}
+          {mode !== 'simple' && <p className="note mt-[18px] text-center">{API_MODE === 'mock' ? tr('Saving on this device') : tr('Saved to your Strata server')}</p>}
+        </div>
+        <div className="min-w-0" role="region" aria-label={tr('Farm')}>
+          <CropsPage />
+        </div>
+      </section>
+    )
+
   const panel = (i) =>
     i === index
       ? undefined
       : { height: '100dvh', overflow: 'hidden', transform: `translateY(${peekY}px)` } // off-screen panel: just its top screenful
 
   return (
-    <section className="relative" aria-label="Home">
+    <section className="relative" aria-label={tr('Home')}>
       <HomeSwitch index={index} onPick={(i) => animateTo(i)} overlay={overlay} />
       <div
         className="overflow-x-clip touch-pan-y"
@@ -162,11 +194,11 @@ export default function AnalysisPage() {
         onClickCapture={onClickCapture}
       >
         <div ref={track} className="flex items-start will-change-transform" style={{ transform: index ? 'translate3d(-100%,0,0)' : 'none' }}>
-          <div className={`w-full flex-none px-4 pb-2.5 ${overlay ? '' : 'pt-1.5'}`} style={panel(0)} role="tabpanel" aria-label="Dashboard" inert={index !== 0 && !peekY ? true : undefined}>
+          <div className={`w-full flex-none px-4 pb-2.5 ${overlay ? '' : 'pt-1.5'}`} style={panel(0)} role="tabpanel" aria-label={tr('Dashboard')} inert={index !== 0 && !peekY ? true : undefined}>
             {mode === 'simple' ? <SimpleView /> : <DetailedView />}
-            {mode !== 'simple' && <p className="note mt-[18px] text-center">{API_MODE === 'mock' ? 'Saving on this device' : 'Saved to your Strata server'}</p>}
+            {mode !== 'simple' && <p className="note mt-[18px] text-center">{API_MODE === 'mock' ? tr('Saving on this device') : tr('Saved to your Strata server')}</p>}
           </div>
-          <div className="w-full flex-none" style={{ paddingTop: overlay ? 'calc(96px + env(safe-area-inset-top))' : undefined, ...panel(1) }} role="tabpanel" aria-label="Farm" inert={index !== 1 && !peekY ? true : undefined}>
+          <div className="w-full flex-none" style={{ paddingTop: overlay ? 'calc(96px + env(safe-area-inset-top))' : undefined, ...panel(1) }} role="tabpanel" aria-label={tr('Farm')} inert={index !== 1 && !peekY ? true : undefined}>
             <CropsPage />
           </div>
         </div>

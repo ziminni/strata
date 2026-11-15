@@ -6,6 +6,7 @@ import PlansSection from './PlansSection'
 import SeasonSection from './SeasonSection'
 import SensorSection from './SensorSection'
 import TodaySection from './TodaySection'
+import { tr } from '../../lib/i18n'
 
 const JUMPS = [['s_today', 'Today'], ['s_season', 'Season'], ['s_plans', 'Plans'], ['s_climate', 'Climate'], ['s_sensor', 'Sensor'], ['s_logs', 'Logs']]
 
@@ -15,7 +16,7 @@ export default function DetailedView() {
     <>
       <h1 className="mt-2.5 mb-0.5 text-[28px] font-extrabold">{greeting(farm.name)}</h1>
       <p className="note m-0">{farm.mun}, {farm.prov} · {farm.area} ha · {{ canal: 'irrigated', limited: 'limited water', rainfed: 'rainfed' }[farm.water]}</p>
-      <nav data-noswipe className="no-scrollbar sticky top-0 z-20 -mx-4 flex gap-1.5 overflow-x-auto bg-canvas px-4 py-2.5" aria-label="Jump to section">
+      <nav data-noswipe className="no-scrollbar sticky top-0 z-20 -mx-4 flex gap-1.5 overflow-x-auto bg-canvas px-4 py-2.5" aria-label={tr('Jump to section')}>
         {JUMPS.map(([id, label]) => (
           <button
             key={id}
@@ -34,7 +35,7 @@ export default function DetailedView() {
       <SensorSection />
       <LogsSection />
       <button type="button" className="mx-auto mt-[22px] mb-1 block font-bold text-leaf" onClick={() => setMode('simple')}>
-        Back to simple view
+        {tr('Back to simple view')}
       </button>
     </>
   )

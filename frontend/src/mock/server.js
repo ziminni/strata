@@ -2,8 +2,13 @@
 // backend/app/routers/*, with data kept in localStorage on this device.
 import { CROPS, DEFAULT_FARM, FARM_CROPS, LOGTYPES, MON, PLANS, POST_TYPES, PROV, SAMPLE_POSTS, SCEN } from './data'
 import { activePlan, ADVICE_CROPS, buildSegs, climSummary, cropAdvice, evaluatePlan, rankedView, segView } from './engine'
+import { tr } from '../lib/i18n'
+import { geminiChat } from '../lib/gemini'
+import { LIKELIHOOD_TIER, LIKELIHOOD_VERDICT, modelReasons } from '../lib/model'
+import { wxDay } from '../lib/weather'
 
 const ME = 'me'
+
 const KEYS = { farm: 'strata_farm', logs: 'strata_logs', posts: 'strata_posts_v8', plots: 'strata_plots' }
 
 function load(key, fallback) {
@@ -36,7 +41,7 @@ function parseDate(s) {
 const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 function httpError(status, detail) {
-  const e = new Error(detail)
+  const e = new Error(tr(detail)) // messages reach the screen, so they follow the app language
   e.status = status
   return e
 }
@@ -81,8 +86,13 @@ function seedPosts() {
 const getFarm = () => normalizeFarm(load(KEYS.farm, () => ({})))
 const getLogs = () => load(KEYS.logs, () => [])
 const getPosts = () => load(KEYS.posts, () => save(KEYS.posts, seedPosts()))
-const getPlots = () => load(KEYS.plots, () => [])
 const nextId = (rows) => rows.reduce((m, r) => Math.max(m, r.id), 0) + 1
+
+// The farmer has ONE crop at a time. Older builds stored a list, so keep only the newest entry.
+const getCrop = () => {
+  const v = load(KEYS.plots, () => null)
+  return Array.isArray(v) ? [...v].sort((a, b) => b.created_at - a.created_at)[0] || null : v
+}
 
 /* ---------- validation (mirrors backend/app/schemas.py) ---------- */
 const oneOf = (v, opts, d) => (opts.includes(v) ? v : d)
@@ -96,7 +106,7 @@ function normalizeFarm(f = {}) {
   const prov = PROV[f.prov] ? f.prov : d.prov
   const w = f.w || {}
   return {
-    name: String(f.name ?? '').slice(0, 80),
+    name: String(f.name ?? '').trim().slice(0, 80) || d.name,
     prov,
     mun: PROV[prov].mun.includes(f.mun) ? f.mun : PROV[prov].mun[0],
     area: num(f.area, 0.1, 1000, d.area),
@@ -124,7 +134,7 @@ function postView(p) {
     crop: p.crop,
     prov: p.prov,
     mun: p.mun,
-    author: p.mine ? 'You' : p.author_label,
+    author: p.mine ? getFarm().name : p.author_label, // your own posts show your current name
     mine: p.mine,
     verified: p.verified,
     sample: p.sample,
@@ -156,7 +166,7 @@ function addPost(text, type, crop, image = '', images = [], place = '', mun = ''
     crop: crop || '',
     prov: pr,
     mun: m,
-    author_label: (farm.name ? farm.name.split(' ')[0] : 'Farmer') + ' · ' + m,
+    author_label: farm.name,
     mine: true,
     verified: false,
     sample: false,
@@ -177,6 +187,50 @@ function scenario(q, fallback) {
 }
 
 /* ---------- routes ---------- */
+/* ---------- Tata chat context ---------- */
+const WATER_TXT = { canal: 'irrigated (canal, reliable)', limited: 'limited irrigation in the dry season', rainfed: 'rainfed only' }
+function chatContext(body) {
+  const farm = getFarm()
+  const crop = getCrop()
+  const lines = []
+  lines.push(`Farm: ${farm.name}, ${farm.mun}, ${farm.prov}, Philippines. ${farm.area} ha, water: ${WATER_TXT[farm.water] || farm.water}, soil: ${farm.tex}, drainage: ${farm.drain}, pH ${farm.ph}, organic matter ${farm.om}%.`)
+  if (crop) {
+    const c = CROPS[crop.crop]
+    lines.push(`Current crop: ${c.fil} (${c.en}), planting window ${crop.planted}${crop.planted_end ? ' to ' + crop.planted_end : ''}, field at ${crop.mun}, ${crop.prov}.`)
+    if (crop.model) {
+      const m = crop.model
+      lines.push(`STRATA crop model (EcoCrop-informed climate screening on NASA POWER data${m.years ? ' ' + m.years.join('–') : ''}): planting likelihood ${m.likelihood}, climate compatibility score ${(m.score / 100).toFixed(2)}, most compatible planting date ${m.best_date}. Temperature fit ${m.window_temp_score ?? '?'}/100, yearly climate ${m.climate_score ?? '?'}/100, dry spells ~${m.dry_spell_days ?? '?'} days, heavy-rain days ${m.heavy_rain_days ?? '?'}, days over 36°C ${m.heat_days ?? '?'}.`)
+    }
+  } else lines.push('The farmer has not chosen a crop yet (they can add one with "Choose your crop").')
+  const s = body?.sensor
+  if (s && s.soil_moisture_pct != null)
+    lines.push(`Field sensor now: soil moisture ${Math.round(s.soil_moisture_pct)}%, paddy water level ${Math.round(s.water_level_cm)} cm (AWD: irrigate at -15 cm or lower), soil temperature ${Number(s.soil_temp_c).toFixed(1)}°C.`)
+  try {
+    const prov = crop?.prov || farm.prov
+    const series = climSummary(prov).series
+    const today = new Date()
+    const days = [0, 1, 2, 3, 4, 5, 6].map((i) => {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)
+      const w = wxDay(prov, series, d)
+      return `${isoDate(d)}: ${w.txt}, ${w.lo}–${w.hi}°C, rain chance ${w.chance}%${w.mm != null ? `, ~${Math.round(w.mm)} mm` : ''}`
+    })
+    lines.push(`7-day forecast${'' }:\n` + days.join('\n'))
+  } catch {
+    /* forecast unavailable */
+  }
+  const lang = body?.language || 'English'
+  return [
+    'You are Tata, a friendly, practical farm helper in the Strata app for smallholder farmers in Valencia City, Bukidnon, Philippines (rice/palay, corn/mais, tobacco/tabako).',
+    `Always reply in ${lang}, in plain words a farmer understands. Keep answers short: 2–5 sentences or a few bullet points. Use the farm data below; give concrete numbers, days and actions.`,
+    'Write plain text only: no markdown, no asterisks, no headings. For a list, start each line with "• ".',
+    'If something is outside the data, say so and give general good practice (DA / PhilRice / PAGASA guidance). Never invent sensor readings or forecasts. For pesticides, give safe-use advice and suggest the local agriculturist.',
+    `Today is ${isoDate(new Date())}.`,
+    '',
+    'FARM DATA',
+    ...lines,
+  ].join('\n')
+}
+
 export async function handle(method, path, body) {
   const url = new URL(path, 'http://local')
   const p = url.pathname
@@ -283,7 +337,7 @@ export async function handle(method, path, body) {
     const text = String(body?.text || '').trim()
     if (!text) throw httpError(422, 'Comment cannot be empty')
     const farm = getFarm()
-    const author = farm.name ? farm.name.split(' ')[0] : 'You'
+    const author = farm.name
     const newComment = {
       id: Date.now(),
       author,
@@ -306,49 +360,81 @@ export async function handle(method, path, body) {
     const moist = q.has('moist') ? num(q.get('moist'), 0, 100, null) : null
     return { prov, water, start: isoDate(start), crops: cropAdvice({ ...base, prov, water }, start, moist) }
   }
-  if (route === 'GET /plots') return [...getPlots()].sort((a, b) => b.created_at - a.created_at)
-  if (route === 'POST /plots') {
+  if (route === 'GET /crop') return getCrop()
+  if (route === 'PUT /crop') {
     const b = body || {}
     if (!PROV[b.prov]) throw httpError(422, 'Pick a province')
     if (!ADVICE_CROPS.includes(b.crop)) throw httpError(422, 'Pick a crop')
     const planted = parseDate(b.planted)
     if (!planted) throw httpError(422, 'Pick a planting date')
-    const water = oneOf(b.water, ['canal', 'limited', 'rainfed'], 'canal')
+    const farm = getFarm()
+    // the form only asks for crop, location and start date; water and size come from the farm profile
+    const water = oneOf(b.water, ['canal', 'limited', 'rainfed'], farm.water)
     const moist = b.moist == null ? null : num(b.moist, 0, 100, null)
-    // score on our side so the snapshot can't be tampered with
-    const [advice] = cropAdvice({ ...getFarm(), prov: b.prov, water }, planted, moist, b.crop)
-    if (advice.tier === 'not_recommended' && !b.acknowledged) throw httpError(422, 'Confirm that you want to plant a not-recommended crop')
-    const plots = getPlots()
+    const ctx = { ...farm, prov: b.prov, water }
+    // analyse on our side so the snapshot can't be tampered with
+    const [advice] = cropAdvice(ctx, planted, moist, b.crop)
+    // timing check: is the chosen start date a good time? scan the next ~4 months for a better start
+    let best = { start: planted, score: advice.score }
+    for (let i = 7; i <= 120; i += 7) {
+      const d = new Date(planted.getFullYear(), planted.getMonth(), planted.getDate() + i)
+      const [a] = cropAdvice(ctx, d, null, b.crop)
+      if (a.score > best.score) best = { start: d, score: a.score }
+    }
+    const timing = {
+      verdict: advice.tier === 'recommended' ? 'good' : advice.tier === 'possible' ? 'okay' : 'poor',
+      better_start: best.score >= advice.score + 8 ? isoDate(best.start) : null,
+      better_score: best.score >= advice.score + 8 ? best.score : null,
+    }
+    // STRATA crop model result (sent by the client, see src/lib/model.js) overrides the built-in score and timing
+    const model = b.model && LIKELIHOOD_TIER[b.model.likelihood] ? b.model : null
+    if (model) {
+      const best = model.best_date && model.best_date !== isoDate(planted) ? model.best_date : null
+      timing.verdict = LIKELIHOOD_VERDICT[model.likelihood]
+      timing.better_start = best
+      timing.better_score = null // the model scores one window; it gives a better date, not a second score
+    }
     const plot = {
-      id: nextId(plots),
-      name: String(b.name || '').trim().slice(0, 40) || `Field ${plots.length + 1}`,
+      name: String(b.name || '').trim().slice(0, 40) || 'My field',
       prov: b.prov,
       mun: PROV[b.prov].mun.includes(b.mun) ? b.mun : PROV[b.prov].mun[0],
       lat: Number.isFinite(+b.lat) && b.lat !== null ? +b.lat : null,
       lon: Number.isFinite(+b.lon) && b.lon !== null ? +b.lon : null,
-      area: num(b.area, 0.01, 1000, 1),
+      area: num(b.area ?? farm.area, 0.01, 1000, 1),
       water,
+      timing,
       crop: b.crop,
       planted: isoDate(planted),
-      score: advice.score,
-      tier: advice.tier,
-      reasons: advice.reasons,
+      // end of the farmer's planting window (the start is `planted`)
+      planted_end: parseDate(b.planted_end) && parseDate(b.planted_end) >= planted ? isoDate(parseDate(b.planted_end)) : null,
+      score: model ? model.score : advice.score,
+      tier: model ? LIKELIHOOD_TIER[model.likelihood] : advice.tier,
+      reasons: model ? [...modelReasons(model), ...advice.reasons] : advice.reasons,
+      model,
       harvest: advice.harvest,
       created_at: Date.now(),
     }
-    save(KEYS.plots, [plot, ...plots])
+    save(KEYS.plots, plot) // replaces the previous crop
     return plot
   }
-  const plotId = p.match(/^\/plots\/(\d+)$/)
-  if (method === 'DELETE' && plotId) {
-    const plots = getPlots()
-    if (!plots.some((x) => x.id === +plotId[1])) throw httpError(404, 'Field not found')
-    save(KEYS.plots, plots.filter((x) => x.id !== +plotId[1]))
-    return { ok: true }
-  }
 
-  if (route === 'POST /chat')
-    throw httpError(503, 'The AI adviser works once the app is connected to the Strata server. Meanwhile, the Rotation plans section shows the full analysis for your farm.')
+  if (route === 'POST /chat') {
+    // Tata via Google Gemini (see src/lib/gemini.js); the farm, crop, sensor and forecast go in as context
+    const msgs = (body?.messages || []).filter((m) => (m.role === 'user' || m.role === 'assistant') && String(m.content || '').trim()).slice(-16)
+    if (!msgs.length || msgs[msgs.length - 1].role !== 'user') throw httpError(422, 'Write something first')
+    try {
+      const reply = await geminiChat(msgs, chatContext(body))
+      return { reply, tool_notes: [] }
+    } catch (e) {
+      if (e.status === 504) throw httpError(504, 'The adviser took too long. Please try again.')
+      if (e.status === 401 || e.status === 403 || e.status === 400) {
+        console.warn('[chat] Gemini rejected the request:', e.message)
+        throw httpError(503, 'Tata can’t reach the AI service right now. Check the GEMINI_API_KEY in .env.local and restart the dev server.')
+      }
+      console.warn('[chat] Gemini error:', e.message)
+      throw httpError(503, 'Tata is busy right now. Please try again in a minute.')
+    }
+  }
 
   throw httpError(404, `No offline route for ${route}`)
 }

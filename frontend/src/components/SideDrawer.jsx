@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext'
+import { LANGS, langInfo, tr } from '../lib/i18n'
 import { Icon } from './Icon'
 
-const T = {
-  simple: { title: 'Menu', farmer: 'Farmer', settings: 'Settings', logout: 'Log out', close: 'Close menu' },
-  detailed: { title: 'Menu', farmer: 'Farmer', settings: 'Settings', logout: 'Log out', close: 'Close menu' },
-}
+const T = () => ({ title: tr('Menu'), farmer: tr('Farmer'), settings: tr('Settings'), language: tr('Language'), logout: tr('Log out'), close: tr('Close menu') })
 
 const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)' // iOS sheet curve
 const DURATION = 420
@@ -14,8 +12,12 @@ const CLOSE_VELOCITY = 0.5 // px/ms flick
 
 /** Right-hand sidebar opened from the header ≡ button. Swipe right to dismiss. */
 export default function SideDrawer() {
-  const { drawerOpen: open, setDrawerOpen, setFarmSheetOpen, logout, farm, mode } = useApp()
-  const t = T[mode]
+  const { drawerOpen: open, setDrawerOpen, setFarmSheetOpen, logout, farm, lang, setLang, toast } = useApp()
+  const t = T()
+  const [langOpen, setLangOpen] = useState(false)
+  useEffect(() => {
+    if (!open) setLangOpen(false)
+  }, [open])
   const panel = useRef(null)
   const drag = useRef(null)
   const [dx, setDx] = useState(0) // live drag offset; 0 when not dragging
@@ -76,7 +78,7 @@ export default function SideDrawer() {
         style={{ opacity: shown, transition: dragging ? 'none' : `opacity ${DURATION}ms ${EASE}` }}
       />
       {/* keep the panel aligned to the phone column on wide screens */}
-      <div className="pointer-events-none relative mx-auto h-full max-w-[430px] overflow-hidden">
+      <div className="pointer-events-none relative mx-auto h-full max-w-[430px] overflow-hidden md:max-w-none">
         <aside
           ref={panel}
           tabIndex={-1}
@@ -122,6 +124,39 @@ export default function SideDrawer() {
           <div className="mx-6 h-px bg-line" />
 
           <nav className="px-3 pt-3" aria-label={t.title}>
+            <MenuItem icon="globe" label={t.language} value={langInfo(lang).label} open={langOpen} onClick={() => setLangOpen((v) => !v)} />
+            {/* language choices expand in place */}
+            <div className="grid transition-[grid-template-rows] duration-300" style={{ gridTemplateRows: langOpen ? '1fr' : '0fr', transitionTimingFunction: EASE }} inert={!langOpen}>
+              <div className="overflow-hidden">
+                <div className="mx-1 mb-2 rounded-2xl bg-surface2 p-1.5" role="radiogroup" aria-label={t.language}>
+                  {LANGS.map((l) => {
+                    const on = l.code === lang
+                    return (
+                      <button
+                        key={l.code}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => {
+                          if (!on) {
+                            setLang(l.code)
+                            toast(tr('Language: {lang}', { lang: l.label }))
+                          }
+                          setLangOpen(false)
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${on ? 'bg-surface text-leaf-ink shadow-[0_1px_3px_rgb(16_34_26/0.1)]' : 'text-ink hover:bg-surface/70'}`}
+                      >
+                        <span className="flex-1">
+                          <span className="block text-[16px] font-bold simple:text-[17px]">{l.label}</span>
+                          <span className="block text-[12.5px] text-muted simple:text-[13.5px]">{l.hint}</span>
+                        </span>
+                        {on && <span className="text-leaf [&_.ic]:size-5"><Icon name="check" /></span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
             <MenuItem
               icon="settings"
               label={t.settings}
@@ -141,18 +176,22 @@ export default function SideDrawer() {
   )
 }
 
-function MenuItem({ icon, label, onClick, danger }) {
+function MenuItem({ icon, label, value, open, onClick, danger }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-expanded={open}
       className={`flex w-full items-center gap-3.5 rounded-2xl px-3 py-3.5 text-left transition-colors duration-150 [&_.ic]:size-[22px] ${
         danger ? 'text-danger hover:bg-danger-soft/60 active:bg-danger-soft' : 'text-ink hover:bg-surface2 active:bg-chip'
       }`}
     >
       <Icon name={icon} />
       <span className="flex-1 text-[16px] font-semibold simple:text-[18px]">{label}</span>
-      {!danger && <span className="text-muted [&_.ic]:size-[18px]"><Icon name="chevron" /></span>}
+      {value && <span className="text-[14px] font-semibold text-muted simple:text-[15px]">{value}</span>}
+      {!danger && (
+        <span className={`text-muted transition-transform duration-300 [&_.ic]:size-[18px] ${open ? 'rotate-90' : ''}`}><Icon name="chevron" /></span>
+      )}
     </button>
   )
 }

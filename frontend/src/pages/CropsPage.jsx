@@ -1,151 +1,108 @@
-import { useEffect, useState } from 'react'
-import { api } from '../api'
-import AddCropSheet, { TIER } from '../components/AddCropSheet'
-import { Icon } from '../components/Icon'
-import Tata from '../components/Tata'
+import ModelResult from '../components/ModelResult'
+import TataBuddy from '../components/TataBuddy'
 import { useApp } from '../context/AppContext'
-import { dayDiff, fmtD, parseYmd } from '../lib/format'
+import { useApi } from '../hooks/useApi'
+import { cropStatus, STAGES } from '../lib/cropPlan'
+import { fertilizerAdvice } from '../lib/fertilizer'
+import { fmtD } from '../lib/format'
+import { tr } from '../lib/i18n'
+import { TIER } from '../lib/tiers'
+import DashCard from './analysis/DashCard'
 
 const WATER_LABEL = { canal: 'Irrigated', limited: 'Limited water', rainfed: 'Rain only' }
 
-function FieldCard({ p, crops, moist, onRemove }) {
-  const [confirm, setConfirm] = useState(false)
-  const c = crops[p.crop]
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()) // compare whole days
-  const day = dayDiff(today, parseYmd(p.planted)) + 1
-  const progress = Math.min(1, Math.max(0, day / c.days))
-  const status = day < 1 ? `Planting in ${1 - day} day${day === 0 ? '' : 's'}` : day > c.days ? 'Ready to harvest' : `Day ${day} of ${c.days}`
-  const t = TIER[p.tier]
-  const warns = p.reasons.filter((r) => r.warn)
-  const top = (warns.length ? warns : p.reasons).slice(0, 2)
-  const dry = moist < 35
-
+function Tile({ value, label, warn }) {
   return (
-    <article className="card overflow-hidden p-0">
-      <div className="flex items-center gap-3 px-4 pt-4">
-        <span className="grid size-12 flex-none place-items-center rounded-2xl text-white [&_.ic]:size-6" style={{ background: c.color }}><Icon name="sprout" /></span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-1.5">
-            <b className="font-display text-[20px] leading-tight font-extrabold">{c.fil}</b>
-            <span className="truncate text-[13px] text-muted">{c.en}</span>
-          </div>
-          <div className="truncate text-[13px] text-muted">{p.name} · {p.mun} · {p.area} ha</div>
-        </div>
-        <span className={`flex-none rounded-full px-2.5 py-1 text-[11px] font-bold ${t.pill}`}>{t.label}</span>
-      </div>
-
-      <div className="px-4 pt-3.5">
-        <div className="flex items-center justify-between text-[13px] font-semibold">
-          <span>{status}</span>
-          <span className="text-muted">Harvest ~{fmtD(parseYmd(p.harvest))}</span>
-        </div>
-        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface2" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
-          <i className="block h-full rounded-full bg-linear-90 from-[#6cc58a] to-leaf transition-[width] duration-500" style={{ width: `${progress * 100}%` }} />
-        </div>
-      </div>
-
-      {/* live conditions */}
-      <div className="mx-4 mt-3.5 grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-2xl bg-surface2 px-2 py-2.5">
-          <div className={`font-display text-[18px] font-extrabold tabular-nums ${dry ? 'text-danger' : ''}`}>{moist}%</div>
-          <div className="text-[11px] font-semibold text-muted">Soil moisture</div>
-        </div>
-        <div className="rounded-2xl bg-surface2 px-2 py-2.5">
-          <div className="font-display text-[18px] font-extrabold tabular-nums">{p.score}</div>
-          <div className="text-[11px] font-semibold text-muted">Fit score</div>
-        </div>
-        <div className="rounded-2xl bg-surface2 px-2 py-2.5">
-          <div className="truncate font-display text-[15px] leading-[27px] font-extrabold">{WATER_LABEL[p.water]}</div>
-          <div className="text-[11px] font-semibold text-muted">Water</div>
-        </div>
-      </div>
-
-      <ul className="mt-3 space-y-1.5 px-4 text-[13.5px]">
-        {dry && (
-          <li className="flex gap-2 text-danger"><span className="flex-none [&_.ic]:size-4"><Icon name="drop" /></span>Sensor says the soil is dry. Water the field soon.</li>
-        )}
-        {top.map((r, i) => (
-          <li key={i} className={`flex gap-2 ${r.warn ? 'text-danger' : 'text-ink-soft'}`}>
-            <span className="flex-none [&_.ic]:size-4"><Icon name={r.warn ? 'alert' : 'check'} /></span>{r.text}
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-3 flex justify-end border-t border-line px-2 py-1.5">
-        <button
-          type="button"
-          onClick={() => (confirm ? onRemove(p.id) : setConfirm(true))}
-          onBlur={() => setConfirm(false)}
-          className={`rounded-xl px-3 py-2 text-[13px] font-bold transition-colors ${confirm ? 'bg-danger text-white' : 'text-muted hover:bg-surface2'}`}
-        >
-          {confirm ? 'Tap again to remove' : 'Remove'}
-        </button>
-      </div>
-    </article>
+    <div className="rounded-2xl bg-surface2 px-2 py-2.5 text-center">
+      <div className={`truncate font-display text-[19px] leading-tight font-extrabold tabular-nums ${warn ? 'text-danger' : ''}`}>{value}</div>
+      <div className="mt-0.5 text-[11.5px] font-semibold text-muted">{label}</div>
+    </div>
   )
 }
 
-/** Farm tab: the farmer's fields and crops, each analysed with weather, climate, soil and the sensor. */
-export default function CropsPage() {
-  const { crops, sensor, toast } = useApp()
-  const [plots, setPlots] = useState(null)
-  const [adding, setAdding] = useState(false)
-
-  useEffect(() => {
-    api.get('/plots').then(setPlots).catch(() => setPlots([]))
-  }, [])
-
-  const remove = async (id) => {
-    try {
-      await api.del(`/plots/${id}`)
-      setPlots((xs) => xs.filter((x) => x.id !== id))
-      toast('Field removed')
-    } catch (e) {
-      toast(e.message)
-    }
-  }
-
-  const moist = Math.round(sensor.moist)
+/** The crop, where and when it was planted, and Tata. */
+function Hero({ plot, c, st, mood }) {
+  const t = TIER[plot.tier]
   return (
-    <section className="px-4 pt-2 pb-2.5" aria-label="My farm">
-      {plots && plots.length > 0 && (
-        <div className="mb-3 flex items-center">
-          <h1 className="flex-1 text-[24px] font-extrabold">My crops</h1>
-          <button type="button" className="btn btn-pri btn-sm" onClick={() => setAdding(true)}><span className="text-[16px] leading-none">+</span> Add crop</button>
+    <section className="tip-in rounded-[26px] bg-surface p-5 shadow-card" aria-label={tr('My crop')}>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <span className={`inline-block rounded-full px-2.5 py-1 text-[11.5px] font-bold ${t.pill}`}>{t.label} · {tr('fit {n}', { n: plot.score })}</span>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <h1 className="text-[30px] leading-none font-extrabold" style={{ color: c.color }}>{c.fil}</h1>
+            <span className="text-[15px] font-semibold text-muted">{c.en}</span>
+          </div>
+          <p className="mt-1.5 mb-0 text-[13.5px] text-muted">{tr('Planted {date}', { date: fmtD(st.planted) })} · {tr(plot.name)}, {plot.mun} · {plot.area} ha</p>
         </div>
-      )}
+        <TataBuddy
+          mood={mood}
+          size={92}
+          className="-mt-1 -mr-1 flex-none"
+          lines={[
+            mood === 'thirsty' ? tr('I’m thirsty! Please water the field.') : st.day < 1 ? tr('Planting day is coming soon!') : tr('Day {n}! {crop} is in the {stage} stage.', { n: Math.min(st.day, st.days), crop: c.fil, stage: STAGES[Math.max(0, st.stage)].toLowerCase() }),
+            st.left > 0 ? tr('Harvest in {n} days. We can do it!', { n: st.left }) : tr('It’s harvest time!'),
+            tr('Hehe, that tickles!'),
+            tr('Scroll down for my planting check!'),
+            tr('{crop} and I are best friends now.', { crop: c.fil }),
+          ]}
+        />
+      </div>
+    </section>
+  )
+}
 
-      {plots === null && <p className="note py-10 text-center">Loading your fields…</p>}
+/** Farm tab — the STRATA model's verdict for the farmer's crop: likelihood, climate score, best planting date. */
+export default function CropsPage({ embedded = false }) {
+  const { crops, farm, sensor, cropVersion, farmVersion, setCropSheetOpen } = useApp()
+  const { data: plot, loading } = useApi('/crop', [cropVersion, farmVersion])
+  const { data: climRes } = useApi('/climate?scenario=now', [farmVersion])
 
-      {plots && plots.length === 0 && (
-        <div className="card mt-2 flex flex-col items-center px-6 py-8 text-center">
-          <Tata mood="happy" size={120} />
-          <h2 className="mt-3 text-[24px] leading-tight font-extrabold text-paddy">Let’s add your first crop</h2>
-          <p className="mt-2 mb-5 text-[15px] leading-[1.5] text-ink-soft">
-            Tell Tata where your field is. He’ll check today’s weather, future climate, your soil and sensor, then show which crops fit best.
-          </p>
-          <button type="button" className="btn btn-pri w-full" onClick={() => setAdding(true)}>
-            <span className="text-[18px] leading-none">+</span> Add a crop
-          </button>
+  if (loading && !plot) return <p className="note py-16 text-center">{tr('Loading your crop…')}</p>
+
+  if (!plot)
+    return (
+      <section className="flex min-h-[calc(100dvh-260px)] flex-col items-center justify-center px-6 text-center" aria-label={tr('My crop')}>
+        <TataBuddy size={130} bubble="top" lines={[tr('Let’s choose your crop!'), tr('Palay, Mais or Tabako?'), tr('Hehe, that tickles!'), tr('I’ll help you every step!')]} />
+        <h1 className="mt-4 text-[26px] leading-tight font-extrabold text-paddy">{tr('You haven’t chosen')}<br />{tr('a crop yet')}</h1>
+        <button type="button" className="btn btn-pri mt-5 w-full max-w-[280px]" onClick={() => setCropSheetOpen(true)}>
+          <span className="text-[18px] leading-none">+</span> {tr('Choose your crop')}
+        </button>
+      </section>
+    )
+
+  const c = crops[plot.crop]
+  const m = plot.model
+  const st = cropStatus(plot, c)
+  const clim = climRes?.summary.series
+  const fert = clim ? fertilizerAdvice(farm.prov, clim) : null
+  const moist = Math.round(sensor.moist)
+  const water = Math.round(sensor.water)
+  const dry = moist < 35
+  const mood = dry ? 'thirsty' : st.stage === 4 ? 'harvest' : fert?.level === 'hold' ? 'rain' : 'happy'
+
+  return (
+    <section className={embedded ? '' : 'px-4 pt-2 pb-2.5'} aria-label={tr('My crop')}>
+      <Hero plot={plot} c={c} st={st} mood={mood} />
+      <DashCard icon="sprout" tone="g" title={tr('STRATA planting check')}>
+        {!m ? (
+          // crop analysed before the model was connected, or the model couldn't be reached
+          <div className="text-center">
+            <p className="m-0 text-[15px] leading-[1.5] text-ink-soft">{tr('No STRATA model result for this crop yet. Analyze it again to get its planting likelihood, climate score and best planting date.')}</p>
+            <button type="button" className="btn btn-pri mt-4 w-full max-w-[280px]" onClick={() => setCropSheetOpen(true)}>{tr('Analyze again')}</button>
+          </div>
+        ) : (
+          <ModelResult m={m} crop={c.fil} planted={plot.planted} />
+        )}
+      </DashCard>
+
+      {/* desktop Home shows the sensor once (Field sensor card), so skip this there */}
+      {!embedded && <DashCard icon="radio" tone="b" title={tr('Field conditions')}>
+        <div className="grid grid-cols-3 gap-2">
+          <Tile value={`${moist}%`} label={tr('Soil moisture')} warn={dry} />
+          <Tile value={`${water} cm`} label={tr('Water level')} warn={water <= -15} />
+          <Tile value={tr(WATER_LABEL[plot.water])} label={tr('Water source')} />
         </div>
-      )}
-
-      {plots && plots.length > 0 && (
-        <div className="space-y-3">
-          {plots.map((p) => <FieldCard key={p.id} p={p} crops={crops} moist={moist} onRemove={remove} />)}
-        </div>
-      )}
-
-      <AddCropSheet
-        open={adding}
-        onClose={() => setAdding(false)}
-        fieldCount={plots?.length || 0}
-        onAdded={(p) => {
-          setPlots((xs) => [p, ...(xs || [])])
-          toast(`${crops[p.crop].fil} added to your farm`)
-        }}
-      />
+      </DashCard>}
     </section>
   )
 }

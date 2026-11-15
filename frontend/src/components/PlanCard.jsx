@@ -1,6 +1,7 @@
 import { fmtD, MON, parseYmd } from '../lib/format'
 import { GOALS } from '../lib/labels'
 import { Pill } from './ui'
+import { planName, rtext, tr } from '../lib/i18n'
 
 export function GoalBars({ r, cur }) {
   return (
@@ -51,7 +52,7 @@ export function RotationStrip({ segs, crops }) {
               {r.n >= 2 ? crops[r.crop].fil : ''}
             </div>
           ) : (
-            <div key={i} className="h-[26px] rounded-lg bg-[repeating-linear-gradient(-45deg,#e7ece7,#e7ece7_5px,#f3f6f3_5px,#f3f6f3_10px)]" style={{ gridColumn: `span ${r.n}` }} title="Bare field" />
+            <div key={i} className="h-[26px] rounded-lg bg-[repeating-linear-gradient(-45deg,#e7ece7,#e7ece7_5px,#f3f6f3_5px,#f3f6f3_10px)]" style={{ gridColumn: `span ${r.n}` }} title={tr('Bare field')} />
           ),
         )}
       </div>
@@ -65,7 +66,7 @@ export function RotationStrip({ segs, crops }) {
 function Reasons({ items }) {
   return (
     <ul className="mt-2.5 list-disc pl-[18px] text-[13.5px]">
-      {items.map((x, i) => <li key={i} className={`my-[3px] ${x.warn ? 'text-danger' : ''}`}>{x.text}</li>)}
+      {items.map((x, i) => <li key={i} className={`my-[3px] ${x.warn ? 'text-danger' : ''}`}>{rtext(x)}</li>)}
     </ul>
   )
 }
@@ -77,8 +78,8 @@ export function PlanCard({ r, cur, rank, adopted, crops, onAdopt, onExplain }) {
       <div className="flex flex-wrap justify-between gap-3">
         <div className="min-w-0 flex-1">
           <Pill tone={best ? 'ok' : undefined}>#{rank + 1}{best && ' · best fit'}</Pill>
-          {adopted && <> <Pill tone="blue">In your calendar</Pill></>}
-          <h3 className="my-0.5 text-[18px] font-bold">{r.name}</h3>
+          {adopted && <> <Pill tone="blue">{tr('In your calendar')}</Pill></>}
+          <h3 className="my-0.5 text-[18px] font-bold">{planName(r.name)}</h3>
           <div className="note">
             {r.segs.slice(1).map((s) => `${crops[s.crop].fil} ${fmtD(parseYmd(s.start))}–${fmtD(parseYmd(s.end))}`).join(' · ')}
           </div>
@@ -94,8 +95,8 @@ export function PlanCard({ r, cur, rank, adopted, crops, onAdopt, onExplain }) {
       <RotationStrip segs={r.segs} crops={crops} />
       <Reasons items={r.reasons} />
       <div className="mt-2.5 flex flex-wrap gap-2">
-        <button type="button" className={`btn btn-sm ${adopted ? '' : 'btn-pri'}`} onClick={onAdopt}>{adopted ? 'Using this plan' : 'Use this plan'}</button>
-        <button type="button" className="btn btn-sm" onClick={onExplain}>Explain simply</button>
+        <button type="button" className={`btn btn-sm ${adopted ? '' : 'btn-pri'}`} onClick={onAdopt}>{adopted ? tr('Using this plan') : tr('Use this plan')}</button>
+        <button type="button" className="btn btn-sm" onClick={onExplain}>{tr('Explain simply')}</button>
       </div>
     </div>
   )
@@ -106,12 +107,12 @@ export function CurrentPlanCard({ cur, crops }) {
     <div className="card mb-3.5 border-[1.5px] border-dashed border-[#cfd8cf] bg-surface2 shadow-none">
       <div className="flex flex-wrap justify-between gap-3">
         <div>
-          <Pill>Now</Pill>
-          <h3 className="my-0.5 text-[18px] font-bold">{cur.name}</h3>
+          <Pill>{tr('Now')}</Pill>
+          <h3 className="my-0.5 text-[18px] font-bold">{planName(cur.name)}</h3>
         </div>
         <div className="text-right font-display text-[30px] leading-none font-extrabold text-muted tabular-nums">
           {Math.round(cur.total)}
-          <small className="block font-sans text-[11px] font-medium">fit score</small>
+          <small className="block font-sans text-[11px] font-medium">{tr('fit score')}</small>
         </div>
       </div>
       <GoalBars r={cur} />

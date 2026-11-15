@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from './Icon'
+import { tr } from '../lib/i18n'
 
 // Browser speech APIs stand in for the prototype's tts/dictation runtime capabilities.
 const SR = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null
@@ -57,7 +58,7 @@ export function MicButton({ value, onChange, onDenied }) {
     setRec(true)
   }
   return (
-    <button type="button" className={`mic ${rec ? 'rec' : ''}`} onClick={toggle} aria-label="Speak" aria-pressed={rec}>
+    <button type="button" className={`mic ${rec ? 'rec' : ''}`} onClick={toggle} aria-label={tr('Speak')} aria-pressed={rec}>
       <Icon name="mic" />
     </button>
   )
