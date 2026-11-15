@@ -19,7 +19,7 @@ export default function TabBar() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 lg:hidden"
       style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
     >
       <nav

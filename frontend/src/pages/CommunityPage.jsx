@@ -382,7 +382,7 @@ function FacebookPost({ p, crops, farm, onLike, onComment, toast }) {
           onClick={() => setActiveImageIdx(null)}
         >
           <div
-            className="relative max-w-[430px] w-full max-h-[88vh] flex flex-col items-center justify-center"
+            className="relative max-w-[430px] w-full max-h-[88vh] flex flex-col items-center justify-center md:max-w-[760px]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Top Bar with Counter and Close */}
@@ -956,7 +956,7 @@ export default function CommunityPage() {
       </div>
 
       {/* Floating Action Button (FAB) bottom-right */}
-      <div className="fixed bottom-[96px] inset-x-0 mx-auto max-w-[430px] pointer-events-none px-4 flex justify-end z-30">
+      <div className="fixed bottom-[96px] inset-x-0 mx-auto max-w-[430px] pointer-events-none px-4 flex justify-end z-30 md:max-w-[760px] lg:bottom-8 lg:max-w-[880px] lg:px-6">
         <button
           type="button"
           className="pointer-events-auto size-14 rounded-full bg-leaf text-white shadow-[0_8px_25px_-4px_rgba(31,157,85,0.6)] flex items-center justify-center hover:bg-leaf/90 hover:scale-105 active:scale-95 transition-all"

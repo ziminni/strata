@@ -105,13 +105,13 @@ export function Sheet({ open, onClose, label, children }) {
   // portal to #app-root so the sheet keeps Simple-mode styles but escapes transformed parents
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgb(13_35_26/0.45)] backdrop-blur-[3px]"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[rgb(13_35_26/0.45)] backdrop-blur-[3px] md:items-center md:p-6"
       onClick={(e) => e.target === e.currentTarget && onClose()}
       role="dialog"
       aria-modal="true"
       aria-label={label}
     >
-      <div className="max-h-[88vh] w-full max-w-[430px] overflow-auto rounded-t-[28px] bg-surface px-4 pt-[18px] pb-6">
+      <div className="max-h-[88vh] w-full max-w-[430px] overflow-auto rounded-t-[28px] bg-surface px-4 pt-[18px] pb-6 md:max-w-[520px] md:rounded-[28px] md:px-6">
         <div className="mx-auto mb-3 h-1 w-10 rounded-sm bg-[#d8d1bf]" />
         {children}
       </div>

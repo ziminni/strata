@@ -31,7 +31,7 @@ export default function AppHeader({ overlay }) {
   const { setDrawerOpen, drawerOpen } = useApp()
   return (
     <header
-      className={overlay ? 'absolute inset-x-0 top-0 z-30' : 'relative z-30 bg-white'}
+      className={`${overlay ? 'absolute inset-x-0 top-0 z-30' : 'relative z-30 bg-white'} lg:hidden`} // desktop: logo + menu live in the sidebar
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex h-14 items-center gap-2 px-3.5 pt-1">

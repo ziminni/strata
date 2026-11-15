@@ -78,7 +78,7 @@ export default function SideDrawer() {
         style={{ opacity: shown, transition: dragging ? 'none' : `opacity ${DURATION}ms ${EASE}` }}
       />
       {/* keep the panel aligned to the phone column on wide screens */}
-      <div className="pointer-events-none relative mx-auto h-full max-w-[430px] overflow-hidden">
+      <div className="pointer-events-none relative mx-auto h-full max-w-[430px] overflow-hidden md:max-w-none">
         <aside
           ref={panel}
           tabIndex={-1}
