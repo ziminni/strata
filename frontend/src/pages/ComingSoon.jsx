@@ -1,7 +1,8 @@
 import { Icon } from '../components/Icon'
 import { useApp } from '../context/AppContext'
+import { tr, localized } from '../lib/i18n'
 
-const CONTENT = {
+const CONTENT = localized({
   diagnose: {
     icon: 'scan',
     title: { simple: 'Check your farm', detailed: 'Tap-to-Diagnose' },
@@ -20,7 +21,7 @@ const CONTENT = {
     },
     steps: ['SMAP soil moisture', 'GPM / IMERG rain', 'MODIS NDVI', 'Land surface temperature'],
   },
-}
+})
 
 export default function ComingSoon({ page }) {
   const { mode } = useApp()
@@ -31,7 +32,7 @@ export default function ComingSoon({ page }) {
         <div className="grid size-14 place-items-center rounded-2xl bg-white/18 [&_.ic]:size-7"><Icon name={c.icon} /></div>
         <h1 className="mt-4 text-[28px] leading-tight font-extrabold">{c.title[mode]}</h1>
         <p className="mt-2 text-[16px] leading-[1.45] opacity-95">{c.lead[mode]}</p>
-        <span className="mt-4 inline-block rounded-full bg-white/20 px-3 py-1 text-[13px] font-bold">Coming next</span>
+        <span className="mt-4 inline-block rounded-full bg-white/20 px-3 py-1 text-[13px] font-bold">{tr('Coming next')}</span>
       </div>
       <ol className="card mt-3.5">
         {c.steps.map((s, i) => (

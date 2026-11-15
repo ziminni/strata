@@ -3,20 +3,21 @@ import { Glow, Pill } from '../components/ui'
 import { useApp } from '../context/AppContext'
 import { addDays, dayDiff, fmtD } from '../lib/format'
 import { QA_TYPES } from '../lib/labels'
+import { localized } from '../lib/i18n'
 
 // The PRD's three operational gates; each opens Diagnose for that crop.
-const ACTIONS = [
+const ACTIONS = localized([
   ['planting', 'rotate', { simple: 'Planting', detailed: 'Planting' }],
   ['fertilizing', 'note', { simple: 'Fertilizing', detailed: 'Fertilizing' }],
   ['harvesting', 'leaf', { simple: 'Harvesting', detailed: 'Harvesting' }],
-]
+])
 
-const EN = {
+const EN = localized({
     title: 'My crops', now: 'In the field now', resting: 'Field is resting', prep: 'Land preparation',
     day: (d, n) => `Day ${d} of ${n}`, plantIn: (n) => `Planting in ${n} days`, check: 'Check with NASA data',
     season: 'This season', plan: 'Plan', changePlan: 'Change', done: 'Done', current: 'Now', next: 'Next',
     logs: (n) => `${n} log${n === 1 ? '' : 's'}`, log: 'Log', nextCrop: 'Next crop', none: 'No crops planned.',
-}
+})
 // English for now; a language picker comes later
 const T = { simple: EN, detailed: EN }
 

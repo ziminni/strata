@@ -5,6 +5,7 @@ import { useApi } from '../hooks/useApi'
 import { cropStatus, STAGES } from '../lib/cropPlan'
 import { fertilizerAdvice } from '../lib/fertilizer'
 import { fmtD } from '../lib/format'
+import { tr } from '../lib/i18n'
 import { TIER } from '../lib/tiers'
 import DashCard from './analysis/DashCard'
 
@@ -23,26 +24,26 @@ function Tile({ value, label, warn }) {
 function Hero({ plot, c, st, mood }) {
   const t = TIER[plot.tier]
   return (
-    <section className="tip-in rounded-[26px] bg-surface p-5 shadow-card" aria-label="My crop">
+    <section className="tip-in rounded-[26px] bg-surface p-5 shadow-card" aria-label={tr('My crop')}>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <span className={`inline-block rounded-full px-2.5 py-1 text-[11.5px] font-bold ${t.pill}`}>{t.label} · fit {plot.score}</span>
+          <span className={`inline-block rounded-full px-2.5 py-1 text-[11.5px] font-bold ${t.pill}`}>{t.label} · {tr('fit {n}', { n: plot.score })}</span>
           <div className="mt-2.5 flex items-baseline gap-2">
             <h1 className="text-[30px] leading-none font-extrabold" style={{ color: c.color }}>{c.fil}</h1>
             <span className="text-[15px] font-semibold text-muted">{c.en}</span>
           </div>
-          <p className="mt-1.5 mb-0 text-[13.5px] text-muted">Planted {fmtD(st.planted)} · {plot.name}, {plot.mun} · {plot.area} ha</p>
+          <p className="mt-1.5 mb-0 text-[13.5px] text-muted">{tr('Planted {date}', { date: fmtD(st.planted) })} · {tr(plot.name)}, {plot.mun} · {plot.area} ha</p>
         </div>
         <TataBuddy
           mood={mood}
           size={92}
           className="-mt-1 -mr-1 flex-none"
           lines={[
-            mood === 'thirsty' ? 'I’m thirsty! Please water the field.' : st.day < 1 ? `Planting day is coming soon!` : `Day ${Math.min(st.day, st.days)}! ${c.fil} is in the ${STAGES[Math.max(0, st.stage)].toLowerCase()} stage.`,
-            st.left > 0 ? `Harvest in ${st.left} days. We can do it!` : 'It’s harvest time!',
-            'Hehe, that tickles!',
-            'Scroll down for my planting check!',
-            `${c.fil} and I are best friends now.`,
+            mood === 'thirsty' ? tr('I’m thirsty! Please water the field.') : st.day < 1 ? tr('Planting day is coming soon!') : tr('Day {n}! {crop} is in the {stage} stage.', { n: Math.min(st.day, st.days), crop: c.fil, stage: STAGES[Math.max(0, st.stage)].toLowerCase() }),
+            st.left > 0 ? tr('Harvest in {n} days. We can do it!', { n: st.left }) : tr('It’s harvest time!'),
+            tr('Hehe, that tickles!'),
+            tr('Scroll down for my planting check!'),
+            tr('{crop} and I are best friends now.', { crop: c.fil }),
           ]}
         />
       </div>
@@ -56,15 +57,15 @@ export default function CropsPage() {
   const { data: plot, loading } = useApi('/crop', [cropVersion, farmVersion])
   const { data: climRes } = useApi('/climate?scenario=now', [farmVersion])
 
-  if (loading && !plot) return <p className="note py-16 text-center">Loading your crop…</p>
+  if (loading && !plot) return <p className="note py-16 text-center">{tr('Loading your crop…')}</p>
 
   if (!plot)
     return (
-      <section className="flex min-h-[calc(100dvh-260px)] flex-col items-center justify-center px-6 text-center" aria-label="My crop">
-        <TataBuddy size={130} bubble="top" lines={['Let’s choose your crop!', 'Palay, Mais or Tabako?', 'Hehe, that tickles!', 'I’ll help you every step!']} />
-        <h1 className="mt-4 text-[26px] leading-tight font-extrabold text-paddy">You haven’t chosen<br />a crop yet</h1>
+      <section className="flex min-h-[calc(100dvh-260px)] flex-col items-center justify-center px-6 text-center" aria-label={tr('My crop')}>
+        <TataBuddy size={130} bubble="top" lines={[tr('Let’s choose your crop!'), tr('Palay, Mais or Tabako?'), tr('Hehe, that tickles!'), tr('I’ll help you every step!')]} />
+        <h1 className="mt-4 text-[26px] leading-tight font-extrabold text-paddy">{tr('You haven’t chosen')}<br />{tr('a crop yet')}</h1>
         <button type="button" className="btn btn-pri mt-5 w-full max-w-[280px]" onClick={() => setCropSheetOpen(true)}>
-          <span className="text-[18px] leading-none">+</span> Choose your crop
+          <span className="text-[18px] leading-none">+</span> {tr('Choose your crop')}
         </button>
       </section>
     )
@@ -80,25 +81,25 @@ export default function CropsPage() {
   const mood = dry ? 'thirsty' : st.stage === 4 ? 'harvest' : fert?.level === 'hold' ? 'rain' : 'happy'
 
   return (
-    <section className="px-4 pt-2 pb-2.5" aria-label="My crop">
+    <section className="px-4 pt-2 pb-2.5" aria-label={tr('My crop')}>
       <Hero plot={plot} c={c} st={st} mood={mood} />
-      <DashCard icon="sprout" tone="g" title="STRATA planting check">
+      <DashCard icon="sprout" tone="g" title={tr('STRATA planting check')}>
         {!m ? (
           // crop analysed before the model was connected, or the model couldn't be reached
           <div className="text-center">
-            <p className="m-0 text-[15px] leading-[1.5] text-ink-soft">No STRATA model result for this crop yet. Analyze it again to get its planting likelihood, climate score and best planting date.</p>
-            <button type="button" className="btn btn-pri mt-4 w-full max-w-[280px]" onClick={() => setCropSheetOpen(true)}>Analyze again</button>
+            <p className="m-0 text-[15px] leading-[1.5] text-ink-soft">{tr('No STRATA model result for this crop yet. Analyze it again to get its planting likelihood, climate score and best planting date.')}</p>
+            <button type="button" className="btn btn-pri mt-4 w-full max-w-[280px]" onClick={() => setCropSheetOpen(true)}>{tr('Analyze again')}</button>
           </div>
         ) : (
           <ModelResult m={m} crop={c.fil} planted={plot.planted} />
         )}
       </DashCard>
 
-      <DashCard icon="radio" tone="b" title="Field conditions">
+      <DashCard icon="radio" tone="b" title={tr('Field conditions')}>
         <div className="grid grid-cols-3 gap-2">
-          <Tile value={`${moist}%`} label="Soil moisture" warn={dry} />
-          <Tile value={`${water} cm`} label="Water level" warn={water <= -15} />
-          <Tile value={WATER_LABEL[plot.water]} label="Water source" />
+          <Tile value={`${moist}%`} label={tr('Soil moisture')} warn={dry} />
+          <Tile value={`${water} cm`} label={tr('Water level')} warn={water <= -15} />
+          <Tile value={tr(WATER_LABEL[plot.water])} label={tr('Water source')} />
         </div>
       </DashCard>
     </section>
