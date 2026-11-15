@@ -5,3 +5,6 @@
 # Generated demo video, poster, and Hyperframes composition
 brag-output/
 brag-output-*/
+
+# macOS Finder metadata
+.DS_Store
