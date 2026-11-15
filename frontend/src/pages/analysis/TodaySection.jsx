@@ -2,23 +2,24 @@ import { FieldHero, Kpi, Pill, Section } from '../../components/ui'
 import { useApp } from '../../context/AppContext'
 import { useApi } from '../../hooks/useApi'
 import { r1, signed } from '../../lib/format'
+import { tr } from '../../lib/i18n'
 
 export function FieldStatus() {
   const { sensor, riceNow, todayState } = useApp()
   if (!riceNow)
     return (
-      <FieldHero tone="info" icon="radio" title="No rice in the field right now">
+      <FieldHero tone="info" icon="radio" title={tr('No rice in the field right now')}>
         Your sensor tracks soil moisture ({r1(sensor.moist)} %) {todayState?.prep ? 'during land preparation' : 'while the field rests'}. Water-level alerts turn on once palay is planted.
       </FieldHero>
     )
   if (sensor.water <= -15)
     return (
-      <FieldHero tone="bad" icon="drop" title="Your field needs water">
+      <FieldHero tone="bad" icon="drop" title={tr('Your field needs water')}>
         AWD tube shows {r1(sensor.water)} cm, below −15 cm. Irrigate to about +5 cm today.
       </FieldHero>
     )
   return (
-    <FieldHero tone="ok" icon="check" title="Field conditions OK">
+    <FieldHero tone="ok" icon="check" title={tr('Field conditions OK')}>
       Paddy water at {signed(sensor.water)} cm.
     </FieldHero>
   )
@@ -34,15 +35,15 @@ export default function TodaySection() {
       <FieldStatus />
       <div className="mt-2.5 grid grid-cols-2 gap-3">
         <Kpi
-          label="Paddy water"
+          label={tr('Paddy water')}
           value={signed(sensor.water) + ' cm'}
-          sub={!riceNow ? <Pill>No rice planted</Pill> : sensor.water <= -15 ? <Pill tone="bad">Irrigate now</Pill> : <Pill tone="blue">Sensor · live</Pill>}
+          sub={!riceNow ? <Pill>{tr('No rice planted')}</Pill> : sensor.water <= -15 ? <Pill tone="bad">{tr('Irrigate now')}</Pill> : <Pill tone="blue">{tr('Sensor · live')}</Pill>}
         />
-        <Kpi label="Soil moisture" value={r1(sensor.moist) + ' %'} sub={<Pill tone="blue">Sensor · live</Pill>} />
+        <Kpi label={tr('Soil moisture')} value={r1(sensor.moist) + ' %'} sub={<Pill tone="blue">{tr('Sensor · live')}</Pill>} />
         {base && (
           <>
-            <Kpi label="Dry-season rain" value={base.ds + ' mm'} sub={<Pill tone="sun">{future.ds - base.ds} mm by 2050</Pill>} />
-            <Kpi label="Hottest month" value={base.hot.toFixed(1) + ' °C'} sub={<Pill tone="sun">{base.hot_month} · +{meta.scenarios.ssp245.dT} °C by 2050</Pill>} />
+            <Kpi label={tr('Dry-season rain')} value={base.ds + ' mm'} sub={<Pill tone="sun">{future.ds - base.ds} mm by 2050</Pill>} />
+            <Kpi label={tr('Hottest month')} value={base.hot.toFixed(1) + ' °C'} sub={<Pill tone="sun">{base.hot_month} · +{meta.scenarios.ssp245.dT} °C by 2050</Pill>} />
           </>
         )}
       </div>

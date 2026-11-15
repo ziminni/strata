@@ -6,6 +6,7 @@ import FertilizerAlert from './FertilizerAlert'
 import SeasonOutlook from './SeasonOutlook'
 import SensorGlance from './SensorGlance'
 import WeatherSky from './WeatherSky'
+import { tr } from '../../lib/i18n'
 
 // Simple dashboard: weather, Tata's planting tip (+7-day strip), fertilizer alert, sensor, season outlook. Parked cards live in DashboardCards.jsx.
 export default function SimpleView() {
@@ -19,12 +20,12 @@ export default function SimpleView() {
     return (
       <>
         {/* neutral sky (no weather) so the floating header stays readable */}
-        <section className="sky sky-cloud flex flex-col items-center" aria-label="Get started">
-          <TataBuddy size={120} bubble="top" lines={['Where is your farm?', 'Add your crop to start!', 'I’ll check the weather for you!']} />
-          <h1 className="mt-4 font-sans text-[24px] leading-tight font-extrabold">Add your crop to see<br />your farm’s weather</h1>
-          <p className="mt-2 mb-0 max-w-[300px] text-[15px] leading-[1.45] opacity-95">Tell Tata what you’re planting and where your field is. Then you’ll get the weather and advice for your field.</p>
+        <section className="sky sky-cloud flex flex-col items-center" aria-label={tr('Get started')}>
+          <TataBuddy size={120} bubble="top" lines={[tr('Where is your farm?'), tr('Add your crop to start!'), tr('I’ll check the weather for you!')]} />
+          <h1 className="mt-4 font-sans text-[24px] leading-tight font-extrabold">{tr('Add your crop to see')}<br />{tr('your farm’s weather')}</h1>
+          <p className="mt-2 mb-0 max-w-[300px] text-[15px] leading-[1.45] opacity-95">{tr('Tell Tata what you’re planting and where your field is. Then you’ll get the weather and advice for your field.')}</p>
           <button type="button" className="btn btn-pri mt-5 mb-4 w-full max-w-[280px]" onClick={() => setCropSheetOpen(true)}>
-            <span className="text-[18px] leading-none">+</span> Choose your crop
+            <span className="text-[18px] leading-none">+</span> {tr('Choose your crop')}
           </button>
         </section>
       </>
