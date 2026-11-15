@@ -29,6 +29,15 @@ export default defineConfig(({ mode }) => {
           rewrite: (p) => p.replace(/^\/model/, ''),
           headers: { 'ngrok-skip-browser-warning': '1' },
         },
+        // Google Gemini for Tata's chat (see src/lib/gemini.js). The key stays here on the dev server
+        // (GEMINI_API_KEY in .env.local, git-ignored) and is never sent to the browser.
+        '/gemini': {
+          target: 'https://generativelanguage.googleapis.com',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (p) => p.replace(/^\/gemini/, ''),
+          headers: env.GEMINI_API_KEY ? { 'x-goog-api-key': env.GEMINI_API_KEY } : {},
+        },
       },
     },
   }

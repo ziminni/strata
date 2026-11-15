@@ -3,7 +3,9 @@
 import { CROPS, DEFAULT_FARM, FARM_CROPS, LOGTYPES, MON, PLANS, POST_TYPES, PROV, SAMPLE_POSTS, SCEN } from './data'
 import { activePlan, ADVICE_CROPS, buildSegs, climSummary, cropAdvice, evaluatePlan, rankedView, segView } from './engine'
 import { tr } from '../lib/i18n'
+import { geminiChat } from '../lib/gemini'
 import { LIKELIHOOD_TIER, LIKELIHOOD_VERDICT, modelReasons } from '../lib/model'
+import { wxDay } from '../lib/weather'
 
 const ME = 'me'
 
@@ -185,6 +187,50 @@ function scenario(q, fallback) {
 }
 
 /* ---------- routes ---------- */
+/* ---------- Tata chat context ---------- */
+const WATER_TXT = { canal: 'irrigated (canal, reliable)', limited: 'limited irrigation in the dry season', rainfed: 'rainfed only' }
+function chatContext(body) {
+  const farm = getFarm()
+  const crop = getCrop()
+  const lines = []
+  lines.push(`Farm: ${farm.name}, ${farm.mun}, ${farm.prov}, Philippines. ${farm.area} ha, water: ${WATER_TXT[farm.water] || farm.water}, soil: ${farm.tex}, drainage: ${farm.drain}, pH ${farm.ph}, organic matter ${farm.om}%.`)
+  if (crop) {
+    const c = CROPS[crop.crop]
+    lines.push(`Current crop: ${c.fil} (${c.en}), planting window ${crop.planted}${crop.planted_end ? ' to ' + crop.planted_end : ''}, field at ${crop.mun}, ${crop.prov}.`)
+    if (crop.model) {
+      const m = crop.model
+      lines.push(`STRATA crop model (EcoCrop-informed climate screening on NASA POWER data${m.years ? ' ' + m.years.join('–') : ''}): planting likelihood ${m.likelihood}, climate compatibility score ${(m.score / 100).toFixed(2)}, most compatible planting date ${m.best_date}. Temperature fit ${m.window_temp_score ?? '?'}/100, yearly climate ${m.climate_score ?? '?'}/100, dry spells ~${m.dry_spell_days ?? '?'} days, heavy-rain days ${m.heavy_rain_days ?? '?'}, days over 36°C ${m.heat_days ?? '?'}.`)
+    }
+  } else lines.push('The farmer has not chosen a crop yet (they can add one with "Choose your crop").')
+  const s = body?.sensor
+  if (s && s.soil_moisture_pct != null)
+    lines.push(`Field sensor now: soil moisture ${Math.round(s.soil_moisture_pct)}%, paddy water level ${Math.round(s.water_level_cm)} cm (AWD: irrigate at -15 cm or lower), soil temperature ${Number(s.soil_temp_c).toFixed(1)}°C.`)
+  try {
+    const prov = crop?.prov || farm.prov
+    const series = climSummary(prov).series
+    const today = new Date()
+    const days = [0, 1, 2, 3, 4, 5, 6].map((i) => {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)
+      const w = wxDay(prov, series, d)
+      return `${isoDate(d)}: ${w.txt}, ${w.lo}–${w.hi}°C, rain chance ${w.chance}%${w.mm != null ? `, ~${Math.round(w.mm)} mm` : ''}`
+    })
+    lines.push(`7-day forecast${'' }:\n` + days.join('\n'))
+  } catch {
+    /* forecast unavailable */
+  }
+  const lang = body?.language || 'English'
+  return [
+    'You are Tata, a friendly, practical farm helper in the Strata app for smallholder farmers in Valencia City, Bukidnon, Philippines (rice/palay, corn/mais, tobacco/tabako).',
+    `Always reply in ${lang}, in plain words a farmer understands. Keep answers short: 2–5 sentences or a few bullet points. Use the farm data below; give concrete numbers, days and actions.`,
+    'Write plain text only: no markdown, no asterisks, no headings. For a list, start each line with "• ".',
+    'If something is outside the data, say so and give general good practice (DA / PhilRice / PAGASA guidance). Never invent sensor readings or forecasts. For pesticides, give safe-use advice and suggest the local agriculturist.',
+    `Today is ${isoDate(new Date())}.`,
+    '',
+    'FARM DATA',
+    ...lines,
+  ].join('\n')
+}
+
 export async function handle(method, path, body) {
   const url = new URL(path, 'http://local')
   const p = url.pathname
@@ -372,8 +418,23 @@ export async function handle(method, path, body) {
     return plot
   }
 
-  if (route === 'POST /chat')
-    throw httpError(503, 'The AI adviser works once the app is connected to the Strata server. Meanwhile, the Rotation plans section shows the full analysis for your farm.')
+  if (route === 'POST /chat') {
+    // Tata via Google Gemini (see src/lib/gemini.js); the farm, crop, sensor and forecast go in as context
+    const msgs = (body?.messages || []).filter((m) => (m.role === 'user' || m.role === 'assistant') && String(m.content || '').trim()).slice(-16)
+    if (!msgs.length || msgs[msgs.length - 1].role !== 'user') throw httpError(422, 'Write something first')
+    try {
+      const reply = await geminiChat(msgs, chatContext(body))
+      return { reply, tool_notes: [] }
+    } catch (e) {
+      if (e.status === 504) throw httpError(504, 'The adviser took too long. Please try again.')
+      if (e.status === 401 || e.status === 403 || e.status === 400) {
+        console.warn('[chat] Gemini rejected the request:', e.message)
+        throw httpError(503, 'Tata can’t reach the AI service right now. Check the GEMINI_API_KEY in .env.local and restart the dev server.')
+      }
+      console.warn('[chat] Gemini error:', e.message)
+      throw httpError(503, 'Tata is busy right now. Please try again in a minute.')
+    }
+  }
 
   throw httpError(404, `No offline route for ${route}`)
 }
