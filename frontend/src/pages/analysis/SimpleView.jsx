@@ -20,7 +20,7 @@ export default function SimpleView() {
     return (
       <>
         {/* neutral sky (no weather) so the floating header stays readable */}
-        <section className="sky sky-cloud flex flex-col items-center" aria-label={tr('Get started')}>
+        <section className="sky sky-cloud flex flex-col items-center lg:pt-10" aria-label={tr('Get started')}>
           <TataBuddy size={120} bubble="top" lines={[tr('Where is your farm?'), tr('Add your crop to start!'), tr('I’ll check the weather for you!')]} />
           <h1 className="mt-4 font-sans text-[24px] leading-tight font-extrabold">{tr('Add your crop to see')}<br />{tr('your farm’s weather')}</h1>
           <p className="mt-2 mb-0 max-w-[300px] text-[15px] leading-[1.45] opacity-95">{tr('Tell Tata what you’re planting and where your field is. Then you’ll get the weather and advice for your field.')}</p>

@@ -52,7 +52,7 @@ function Hero({ plot, c, st, mood }) {
 }
 
 /** Farm tab — the STRATA model's verdict for the farmer's crop: likelihood, climate score, best planting date. */
-export default function CropsPage() {
+export default function CropsPage({ embedded = false }) {
   const { crops, farm, sensor, cropVersion, farmVersion, setCropSheetOpen } = useApp()
   const { data: plot, loading } = useApi('/crop', [cropVersion, farmVersion])
   const { data: climRes } = useApi('/climate?scenario=now', [farmVersion])
@@ -81,7 +81,7 @@ export default function CropsPage() {
   const mood = dry ? 'thirsty' : st.stage === 4 ? 'harvest' : fert?.level === 'hold' ? 'rain' : 'happy'
 
   return (
-    <section className="px-4 pt-2 pb-2.5" aria-label={tr('My crop')}>
+    <section className={embedded ? '' : 'px-4 pt-2 pb-2.5'} aria-label={tr('My crop')}>
       <Hero plot={plot} c={c} st={st} mood={mood} />
       <DashCard icon="sprout" tone="g" title={tr('STRATA planting check')}>
         {!m ? (
@@ -95,13 +95,14 @@ export default function CropsPage() {
         )}
       </DashCard>
 
-      <DashCard icon="radio" tone="b" title={tr('Field conditions')}>
+      {/* desktop Home shows the sensor once (Field sensor card), so skip this there */}
+      {!embedded && <DashCard icon="radio" tone="b" title={tr('Field conditions')}>
         <div className="grid grid-cols-3 gap-2">
           <Tile value={`${moist}%`} label={tr('Soil moisture')} warn={dry} />
           <Tile value={`${water} cm`} label={tr('Water level')} warn={water <= -15} />
           <Tile value={tr(WATER_LABEL[plot.water])} label={tr('Water source')} />
         </div>
-      </DashCard>
+      </DashCard>}
     </section>
   )
 }

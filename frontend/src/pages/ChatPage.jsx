@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon'
 import { SpeakButton } from '../components/Speech'
 import Tata from '../components/Tata'
 import { useApp } from '../context/AppContext'
+import { useIsDesktop } from '../hooks/useMedia'
 import { fmtD, lsGet, lsSet } from '../lib/format'
 import { locale, localized, tr } from '../lib/i18n'
 
@@ -209,6 +210,8 @@ export default function ChatPage() {
   const [text, setText] = useState('')
   const list = useRef(null)
   const simple = mode === 'simple'
+  const desktop = useIsDesktop()
+  const [historyOpen, setHistoryOpen] = useState(true) // desktop: history panel shown / closed
   useEffect(() => {
     const el = list.current
     if (el) el.scrollTop = el.scrollHeight
@@ -221,6 +224,114 @@ export default function ChatPage() {
     setShowHistory(false)
     ask(t)
   }
+
+  const startNew = () => {
+    newChat()
+    setShowHistory(false)
+  }
+  const composer = (
+    <textarea
+      className="field h-[52px] min-h-[52px]! resize-none py-[13px]! leading-[1.4]"
+      aria-label={tr('Message')}
+      placeholder={simple ? tr('Type your question…') : tr('Ask about your farm…')}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          send()
+        }
+      }}
+    />
+  )
+
+  // Desktop (≥1024px): full-height two-pane chat — history on the left, conversation on the right.
+  // Messages, starters and the composer share one centred column so their edges line up. Phones use the layout below.
+  if (desktop)
+    return (
+      <section className="h-[calc(100dvh-128px)] min-h-[520px] px-4" aria-label={tr('Ask Tata')}>
+        <style>{TATA_CSS}</style>
+        <div className="flex h-full overflow-hidden rounded-[28px] bg-surface shadow-card">
+          {/* history */}
+          <aside id="chat-history" aria-label={tr('History')} inert={!historyOpen}
+            className={`flex-none overflow-hidden bg-[#f6f9f7] transition-[width,border-color] duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${historyOpen ? 'w-[300px] border-r border-line' : 'w-0 border-r border-transparent'}`}>
+            <div className={`flex h-full w-[300px] flex-col transition-opacity duration-300 ${historyOpen ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="flex h-[72px] flex-none items-center justify-between gap-2 border-b border-line px-4">
+              <h2 className="m-0 flex items-baseline gap-2 text-[17px] font-extrabold">
+                {tr('History')} <span className="text-[13px] font-semibold text-muted tabular-nums">{chats.length}</span>
+              </h2>
+              <button type="button" onClick={() => setHistoryOpen(false)} aria-label={tr('Close history')} title={tr('Close history')}
+                className="grid size-9 place-items-center rounded-full text-muted transition-colors hover:bg-line hover:text-ink [&_.ic]:size-[18px]">
+                <Icon name="close" />
+              </button>
+            </div>
+            <div className="px-4 pt-4 pb-1">
+              <button type="button" className="btn btn-pri w-full" disabled={busy} onClick={startNew}>{tr('+ New conversation')}</button>
+            </div>
+            {/* desktop: selected outline drawn inside the card (same size as the others, never clipped by the scroll edge) */}
+            <div className="min-h-0 flex-1 overflow-auto px-4 pt-3 pb-4 [&_li.ring-2]:ring-inset">
+              <HistoryList chats={chats} currentId={currentId} busy={busy} onOpen={open} onRemove={remove} />
+            </div>
+            </div>
+          </aside>
+
+          {/* conversation */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header className="flex h-[72px] flex-none items-center gap-3 border-b border-line px-6">
+              <span inert={historyOpen}
+                className={`-ml-2 flex flex-none items-center gap-3 overflow-hidden transition-[max-width,opacity,margin] duration-[420ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none ${historyOpen ? 'pointer-events-none mr-[-12px] max-w-0 opacity-0' : 'max-w-[64px] opacity-100'}`}>
+                <button type="button" onClick={() => setHistoryOpen(true)} aria-controls="chat-history" aria-expanded={historyOpen} aria-label={tr('Show history')} title={tr('Show history')}
+                  className="grid size-10 flex-none place-items-center rounded-full text-ink transition-colors hover:bg-surface2 [&_.ic]:size-5">
+                  <Icon name="menu" />
+                </button>
+                <span className="h-7 w-px flex-none bg-line" aria-hidden="true" />
+              </span>
+              <Tata mood="happy" size={44} className="flex-none" />
+              <div className="min-w-0 flex-1">
+                <div className="text-[16px] font-extrabold text-ink">{tr('Tata')}</div>
+                <div className="truncate text-[13px] text-muted">{tr('Your farm helper · NASA weather, field sensor and your crop')}</div>
+              </div>
+            </header>
+
+            <div ref={list} className="min-h-0 flex-1 overflow-auto bg-[#f1f6fb]" aria-live="polite">
+              <div className="mx-auto w-full max-w-[780px] px-6 py-6">
+                {messages.length ? (
+                  <div className="flex flex-col gap-5">
+                    {messages.map((m, i) => <Bubble key={i} m={m} latest={i === messages.length - 1} />)}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center pt-6 text-center">
+                    <HeroTata typing={text.trim().length > 0} />
+                    <h2 className="mt-3 text-[28px] font-extrabold text-paddy">{tr('Hi, I’m Tata!')}</h2>
+                    <p className="mt-1.5 mb-0 max-w-[520px] text-[16px] leading-[1.5] text-ink-soft">
+                      {simple
+                        ? tr('I know your farm, NASA weather data and your field sensor. Pick a question below, or type your own.')
+                        : tr('Your farm helper from Strata. I know your farm profile, NASA climate data for {place}, your field sensor and your crop rotation plans.', { place: farm.prov })}
+                    </p>
+                    <div className="mt-8 grid w-full grid-cols-2 gap-3">
+                      {STARTERS[mode].map((s) => (
+                        <button key={s} type="button" disabled={busy} onClick={() => ask(s)}
+                          className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-left text-[15px] font-semibold text-ink shadow-[0_2px_10px_rgba(30,70,110,.08)] ring-1 ring-line transition-colors hover:bg-leaf-soft hover:text-leaf-ink [&_.ic]:size-[18px] [&_.ic]:text-leaf">
+                          <Icon name="chat" />
+                          <span className="min-w-0 flex-1">{s}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-line bg-surface">
+              <div className="mx-auto flex w-full max-w-[780px] items-center gap-2 px-6 py-4">
+                {composer}
+                <button type="button" className="btn btn-pri flex-none px-6" onClick={send} disabled={busy}>{tr('Send')}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
 
   return (
     <section className="px-4 pt-1.5 pb-2.5" aria-label={tr('Ask Tata')}>

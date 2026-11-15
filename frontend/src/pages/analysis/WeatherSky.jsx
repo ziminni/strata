@@ -9,7 +9,7 @@ export default function WeatherSky({ clim, lat, lon }) {
   const { today: t, kNow, cur, hours } = forecast(farm.prov, clim, lat, lon)
 
   return (
-    <section className={`sky ${SKY_CLASS[kNow]}`} aria-label={tr('Weather on your farm')}>
+    <section className={`sky ${SKY_CLASS[kNow]} lg:pt-10`} aria-label={tr('Weather on your farm')}>
       <div className="inline-flex items-center gap-[5px] text-[14px] font-bold tracking-[0.06em] opacity-95 [&_.ic]:size-[15px] [&_.ic]:fill-white">
         <Icon name="nav" />{tr('MY FARM')}
       </div>

@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { API_MODE } from '../../api'
 import { useApp } from '../../context/AppContext'
+import { useIsDesktop } from '../../hooks/useMedia'
 import CropsPage from '../CropsPage'
+import DesktopHome from './DesktopHome'
 import DetailedView from './DetailedView'
 import SimpleView from './SimpleView'
 import { tr } from '../../lib/i18n'
@@ -53,6 +55,7 @@ function FragmentTab({ i, label, on, onPick }) {
 
 export default function AnalysisPage() {
   const { mode, farmRequest, farmPending } = useApp()
+  const desktop = useIsDesktop()
   const overlay = mode === 'simple' // header + switch float over the sky
   // open straight on Farm if a freshly analysed crop is waiting to be shown
   const [index, setIndex] = useState(() => {
@@ -158,6 +161,21 @@ export default function AnalysisPage() {
       moved.current = false
     }
   }
+
+  // desktop (≥1024px): no swipe. Simple → dashboard grid; Detailed → Dashboard and Farm side by side
+  if (desktop && mode === 'simple') return <DesktopHome />
+  if (desktop)
+    return (
+      <section className="grid grid-cols-2 items-start gap-6" aria-label={tr('Home')}>
+        <div className="min-w-0 px-4 pb-2.5" role="region" aria-label={tr('Dashboard')}>
+          {mode === 'simple' ? <SimpleView /> : <DetailedView />}
+          {mode !== 'simple' && <p className="note mt-[18px] text-center">{API_MODE === 'mock' ? tr('Saving on this device') : tr('Saved to your Strata server')}</p>}
+        </div>
+        <div className="min-w-0" role="region" aria-label={tr('Farm')}>
+          <CropsPage />
+        </div>
+      </section>
+    )
 
   const panel = (i) =>
     i === index
