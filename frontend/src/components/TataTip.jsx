@@ -165,7 +165,7 @@ export default function TataTip({ clim, field }) {
                   {!hold && top.harvest && <span className="rounded-full bg-white px-2.5 py-1 text-ink">{tr('Harvest ~{date}', { date: fmtD(parseYmd(top.harvest)) })}</span>}
                   <span className="rounded-full bg-white px-2.5 py-1 text-ink">{tr('Rain {n}% that day', { n: best.w.chance })}</span>
                   <span className="rounded-full bg-white px-2.5 py-1 text-ink">{tr('Soil {n}%', { n: moist })}</span>
-                  {top.model && <span className="rounded-full bg-white px-2.5 py-1 text-ink">{tr('STRATA model · {level} likelihood', { level: tr(top.model.likelihood) })}</span>}
+                  {top.model && <span className="rounded-full bg-white px-2.5 py-1 text-ink">{tr('STRATA model · {level} compatibility', { level: tr(top.model.likelihood) })}</span>}
                 </div>
               </div>
             </div>

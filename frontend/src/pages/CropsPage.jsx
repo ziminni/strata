@@ -87,7 +87,7 @@ export default function CropsPage({ embedded = false }) {
         {!m ? (
           // crop analysed before the model was connected, or the model couldn't be reached
           <div className="text-center">
-            <p className="m-0 text-[15px] leading-[1.5] text-ink-soft">{tr('No STRATA model result for this crop yet. Analyze it again to get its planting likelihood, climate score and best planting date.')}</p>
+            <p className="m-0 text-[15px] leading-[1.5] text-ink-soft">{tr('No STRATA model result for this crop yet. Analyze it again to get its planting compatibility, climate score and best planting date.')}</p>
             <button type="button" className="btn btn-pri mt-4 w-full max-w-[280px]" onClick={() => setCropSheetOpen(true)}>{tr('Analyze again')}</button>
           </div>
         ) : (

@@ -93,7 +93,7 @@ export default function ModelResult({ m, crop = 'This crop', planted }) {
   const l = LIKELIHOOD[m.likelihood] || LIKELIHOOD.moderate
   return (
     <div>
-      <Row label={tr('Planting likelihood')} why={whyLikelihood(m, crop)}>
+      <Row label={tr('Planting compatibility')} why={whyLikelihood(m, crop)}>
         <span className={`inline-block rounded-full px-3 py-1 text-[14px] font-extrabold ${l.pill}`}>{tr(l.label)}</span>
       </Row>
       <Row label={tr('Climate compatibility score')} why={whyScore(m, crop)}>
